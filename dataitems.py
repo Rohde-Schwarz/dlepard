@@ -5,8 +5,8 @@ import socket
 import struct
 import sys
 
-from ItemsSpecification import *
-from helperFunctions import *
+from items_specification import *
+from helperfunctions import *
 
 sys.path.append('../modules/radio')
 

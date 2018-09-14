@@ -11,11 +11,11 @@ import json
 import urllib.error
 import urllib.request
 
-from helperFunctions import *
-from ItemsSpecification import *
-from DataItems import *
+from helperfunctions import *
+from items_specification import *
+from dataitems import *
 from udpproxy import *
-from heartbeatTimer import *
+from heartbeat_timer import *
 
 sys.path.append('../modules/radio')
 
