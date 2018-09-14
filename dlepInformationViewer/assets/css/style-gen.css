@@ -1,0 +1,93 @@
+html {
+  font-size: 13px;
+}
+
+body {
+  padding-top: 5rem;
+}
+.starter-template {
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.container {
+	padding: 0px;
+	margin: 0px;
+	margin-left: 5px;
+}
+
+.list-group-item {
+	border-top:    0px;
+	border-right:  0px;
+	border-left:   0px;
+	border-bottom: 2px solid #e4e4e4;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.item-emerg {
+	border-left:   4px solid #e036ff;
+}
+.item-alert {
+	border-left:   4px solid #e036ff;
+}
+.item-crit {
+	border-left:   4px solid #e036ff;
+}
+.item-err {
+	border-left:   4px solid red;
+}
+.item-warning {
+	border-left:   4px solid #ff8100;
+}
+.item-notice {
+	border-left:   4px solid #ff9800;
+}
+.item-info {
+	border-left:   4px solid #cddc39;
+}
+.item-debug {
+	border-left:   4px solid #00bcd4;
+}
+.item-unknown {
+	border-left:   4px solid black;
+}
+
+.text-supermuted {
+  color: #8b9ca7!important;
+}
+
+
+.zloader {
+  height: 4px;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  background-color: #ddd;
+}
+.zloader:before{
+  display: block;
+  position: absolute;
+  content: "";
+  left: -200px;
+  width: 200px;
+  height: 4px;
+  background-color: #2980b9;
+  animation: loading 2s linear infinite;
+}
+
+@keyframes loading {
+    from {left: -200px; width: 30%;}
+    50% {width: 30%;}
+    70% {width: 70%;}
+    80% { left: 50%;}
+    95% {left: 120%;}
+    to {left: 100%;}
+}
+
+.alignleft {
+	float: left;
+}
+.alignright {
+	float: right;
+}
