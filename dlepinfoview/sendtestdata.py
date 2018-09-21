@@ -18,6 +18,7 @@ json_data['destinations'] = [
 json_data['peer'] = {
     'tcp_port': 'self.peerTcpPort',
     'heartbeat_interval': 'self.peerHeartbeat',
+    'interface': 'eth1',
     'peer_type': 'self.peerTcpPort',
     'ipv4-address': 'self.peerInformationBase.ipv4Address',
     'max_datarate_rx': 'self.peerInformationBase.maxDatarateRx',

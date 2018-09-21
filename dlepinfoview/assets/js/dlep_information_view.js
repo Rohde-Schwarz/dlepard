@@ -1,6 +1,8 @@
 "use strict";
 
 var ws_socket;
+var known_interfaces = [];
+var first_interface_set = false;
 
 $(document).ready(function() {
     if (!("WebSocket" in window)){
@@ -13,13 +15,16 @@ $(document).ready(function() {
 
 function wsOnMessage(event){
     var jdata = JSON.parse(event.data);
+    var interface_index = 0;
     if  ('peer' in jdata){
-        processPeerData(jdata['peer']);
+        interface_index = getInterfaceId(jdata['peer']['interface']);
+        processPeerData(jdata['peer'], interface_index);
     }
     if ('destinations' in jdata){
-        processDestinationData(jdata['destinations']);
+        processDestinationData(jdata['destinations'], interface_index);
     }
 }
+
 
 function wsOnOpen(event){
     ws_socket.send("ready-for-update");
@@ -45,9 +50,79 @@ function initWebSockets(){
 }
 
 
-function processPeerData(jsonData){
+function createNewContentSection(index){
+    console.log("creating new section");
+    let output = document.getElementById("content");
+
+    output.innerHTML +=
+		'<hr />' +
+		'<hr />' +
+        '<div class="row">' +
+		'<div class="col-6">' +
+		'<div class="card border-light">' +
+		'<h5 class="card-header">' +
+		'Peer Information' +
+		'</h5>' +
+		'<div class="card-body">' +
+		'<div id="peer-table-' + index + '">' +
+		'<table class="table table-sm table-hover">' +
+		'<tr><td><b>Currently no data available</b></td></tr>' +
+		'</table>' +
+		'</div>' +
+		'</div>' +
+		'</div>' +
+		'</div> <!-- col -->' +
+		'</div> <!-- row -->' +
+		'<hr />' +
+        '<div class="row">' +
+        '<div class="col-12">' +
+        '<div class="card border-light">' +
+        '<h5 class="card-header">' +
+        'Destinations' +
+        '</h5>' +
+        '<div class="card-body">' +
+        '<div id="destination-table-' + index + '">' +
+        '<table class="table table-sm table-hover">' +
+        '<td>Currently no data available</td>' +
+        '</table>' +
+        '</div>' +
+        '</div>' +
+        '</div>' +
+        '</div> <!-- col -->' +
+        '</div> <!-- row -->';
+
+}
+
+
+function getInterfaceId(interface_name){
+    var index = null;
+    for (var i = 0; i < known_interfaces.length; i++){
+        if (known_interfaces[i] == interface_name){
+            index = i;
+            break;
+        }
+    }
+    if (index == null){
+        if (first_interface_set){
+            index = known_interfaces.length;
+            known_interfaces.push(interface_name);
+            createNewContentSection(index);
+        }
+        else{
+            known_interfaces.push(interface_name);
+            index = 0;
+            first_interface_set = true;
+        }
+    }
+
+    return index;
+}
+
+
+function processPeerData(jsonData, interface_index){
     console.log("process peer");
-    let output = document.getElementById("peer-table");
+
+    let output = document.getElementById("peer-table-" + interface_index);
 
     let str = '<table class="table table-sm table-hover"' + 
         '<tr><td><b>IPv4-address</b></td><td>' + jsonData['ipv4-address']+ '</td></tr>' +
@@ -60,6 +135,8 @@ function processPeerData(jsonData){
 
     output.innerHTML = str;
 }
+
+
 function processDestTableHeader(){
     return '<table class="table table-sm table-hover"' +
         '<thead><tr>' +
@@ -81,9 +158,9 @@ function processTableEntry(entry){
         '</tr>';
 }
 
-function processDestinationData(jsonData){
+function processDestinationData(jsonData, interface_index){
     console.log("process dest");
-    let output = document.getElementById("destination-table");
+    let output = document.getElementById("destination-table-" + interface_index);
 
     let str = processDestTableHeader();
     for (let entry of jsonData){
