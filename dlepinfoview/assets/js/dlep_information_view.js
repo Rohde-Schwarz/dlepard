@@ -130,7 +130,7 @@ function processPeerData(jsonData, interface_index){
         '<tr><td><b>Interface</b></td><td>' + jsonData['interface'] + '</td></tr>' +
         '<tr><td><b>Max. Datarate Tx</b></td><td>' + jsonData['max_datarate_tx'] + '</td></tr>' +
         '<tr><td><b>Max. Datarate Rx</b></td><td>' + jsonData['max_datarate_rx'] + '</td></tr>' +
-        '<tr><td><b>Heartbeat Interval</b></td><td>' +jsonData['latency'] + '</td></tr>' +
+        '<tr><td><b>Latency</b></td><td>' +jsonData['latency'] + '</td></tr>' +
         '</table>';
 
     output.innerHTML = str;
