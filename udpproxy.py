@@ -1,9 +1,13 @@
 # SPDX-License-Identifier: MIT
 
 import asyncio
+import fcntl
 import os
 import socket
 import struct
+
+
+
 
 
 class UDPProxy(asyncio.DatagramProtocol):  # cli.Observer):
@@ -28,14 +32,22 @@ class UDPProxy(asyncio.DatagramProtocol):  # cli.Observer):
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
             if hasattr(socket, 'SO_REUSEADDR'):
                 self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+            self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 0)
+            print('socket listens to port {} on if {}'.format(self.port, self.interface))
+
+            self.sock.bind(('', self.port))
             # no idea why its 25
             self.sock.setsockopt(socket.SOL_SOCKET, 25, self.interface.encode('utf-8'))
+
+            mreq = socket.inet_aton(ipv4adr)
+            mreq += socket.inet_aton(self.get_ip_address(interface))
+            mreq += struct.pack('@i', socket.if_nametoindex(interface))
             self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 0)
-            print('socket listens to port {}'.format(self.port))
-            self.sock.bind(('', self.port))
-            mreq = struct.pack("=4sl", socket.inet_aton(self.mcast_ipaddr), socket.INADDR_ANY)
             self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 1)
             self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+
+            self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(self.get_ip_address(interface)))
         else:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -45,6 +57,15 @@ class UDPProxy(asyncio.DatagramProtocol):  # cli.Observer):
 
     def send_msg(self, message):
         self.transport.sendto(message, (self.mcast_ipaddr, self.port))
+
+    @staticmethod
+    def get_ip_address(if_name):
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        return socket.inet_ntoa(fcntl.ioctl(
+            s.fileno(),
+            0x8915,  # SIOCGIFADDR
+            struct.pack('256s', if_name[:15].encode('utf-8'))
+        )[20:24])
 
     def connection_made(self, transport):
         self.transport = transport
