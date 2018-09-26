@@ -144,6 +144,8 @@ function processDestTableHeader(){
         '<th>IPv4 Address</th>' +
         '<th>Max. Datarate RX</th>' +
         '<th>Max. Datarate TX</th>' +
+        '<th>Cur. Datarate RX</th>' +
+        '<th>Cur. Datarate TX</th>' +
         '<th>Latency</th>' +
         '</tr></thead><tbody>'
 }
@@ -154,6 +156,8 @@ function processTableEntry(entry){
         '<td>' + entry['ipv4-address'] + '</td>' +
         '<td>' + entry['max_datarate_rx'] + '</td>' +
         '<td>' + entry['max_datarate_tx'] + '</td>' +
+        '<td>' + entry['cur_datarate_rx'] + '</td>' +
+        '<td>' + entry['cur_datarate_tx'] + '</td>' +
         '<td>' + entry['latency'] + '</td>' +
         '</tr>';
 }

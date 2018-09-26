@@ -123,6 +123,7 @@ class DLEPSession:
 
         elif self.state == DlepSessionState.IN_SESSION_STATE:
             if pdu.type == MessageType.DESTINATION_UP_MESSAGE:
+                log.debug("--> got destination up message")
                 new_dib = DestinationInformationBase()
                 self.process_data_items(pdu.data_items, new_dib)
                 self.destinationInformationBase.append(new_dib)
@@ -135,6 +136,7 @@ class DLEPSession:
                 self.print_destination_information_base(peer=True)
 
             elif pdu.type == MessageType.DESTINATION_DOWN_MESSAGE:
+                log.debug("--> got destination down message")
                 dib_to_remove = DestinationInformationBase()
                 self.process_data_items(pdu.data_items, dib_to_remove)
                 entries_to_remove = list(filter(lambda x: dib_to_remove.macAddress.lower() == x.macAddress.lower(),
@@ -150,11 +152,13 @@ class DLEPSession:
                 self.print_destination_information_base(peer=True)
 
             elif pdu.type == MessageType.DESTINATION_UPDATE_MESSAGE:
+                log.debug("--> got destination update message")
                 new_dib = DestinationInformationBase()
                 self.process_data_items(pdu.data_items, new_dib)
-                entries = list(filter(lambda x: new_dib.macAddress.lower() == x.macAddress.lower(),
-                                     self.destinationInformationBase))
-                entries[0] = new_dib
+
+                for i, entry in enumerate(self.destinationInformationBase):
+                    if entry.macAddress.lower() == new_dib.macAddress.lower():
+                        self.destinationInformationBase[i] = new_dib
 
                 self.print_destination_information_base(peer=True)
             elif pdu.type == MessageType.HEARTBEAT_MESSAGE:
