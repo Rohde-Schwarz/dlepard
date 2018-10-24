@@ -61,8 +61,10 @@ class DestinationInformationBase:
 
 class DLEPSession:
     def __init__(self, conf, interface, loop=None, update_callback = None):
-        self.dlep_mcast_ipv4addr = conf["dlep_mcast_ip4addr"]
-        self.dlep_udp_port = conf["dlep_udp_port"]
+        self.dlep_mcast_ipv4addr = conf["dlep"]["mcast-ip4addr"]
+        self.dlep_udp_port = conf["dlep"]["udp-port"]
+
+        self.conf = conf
 
         self.loop = loop
         self.state = DlepSessionState.PEER_DISCOVERY_STATE
@@ -418,16 +420,16 @@ def parse_args():
 
 
 def load_configuration_file(args):
-    config = dict()
-    exec(open(args.configuration).read(), config)
-    return config
+    file = open(args.configuration)
+    configur = json.loads(file.read())
+    return configur
 
 
 def update_webview(session: DLEPSession):
     info = session.get_information_json_string().encode('utf-8')
-    # todo make this configurable
-    send_api_call("http://localhost:8080/api/v1/dlep-update", info)
-    send_api_call("http://localhost:9000/api/v1/dlep-update", info)
+    if "rest-if" in session.conf:
+        for url in session.conf["rest-if"]["broadcast-url"]:
+            send_api_call(url, info)
 
 
 def send_api_call(url: str, info):

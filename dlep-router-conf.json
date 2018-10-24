@@ -1,0 +1,17 @@
+{
+  "dlep": {
+    "mcast-ip4addr" : "224.0.0.117",
+    "udp-port" : 854
+  },
+
+  "router" : {
+    "interfaces" : ["eth0", "eth1"]
+  },
+
+  "rest-if" : {
+    "broadcast-url" : [
+      "http://localhost:8080/api/v1/dlep-update",
+      "http://localhost:9000/api/v1/dlep-update"
+    ]
+  }
+}
