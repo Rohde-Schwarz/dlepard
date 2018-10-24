@@ -59,6 +59,16 @@ class DestinationInformationBase:
         self.latency = 0
 
 
+class RecentEvent:
+    TYPE_DEST_DOWN = "dest-down"
+    TYPE_DEST_UP = "dest-up"
+
+    def __init__(self, ev_type, mac, ipv4):
+        self.type = ev_type
+        self.ipv4_addr = ipv4
+        self.node_mac_addr = mac
+
+
 class DLEPSession:
     def __init__(self, conf, interface, loop=None, update_callback = None):
         self.dlep_mcast_ipv4addr = conf["dlep"]["mcast-ip4addr"]
@@ -85,6 +95,7 @@ class DLEPSession:
         self.peerInformationBase = DestinationInformationBase()
 
         self.destinationInformationBase = []
+        self.recent_events = []
 
         self.update_callback = update_callback
 
@@ -129,6 +140,8 @@ class DLEPSession:
                 new_dib = DestinationInformationBase()
                 self.process_data_items(pdu.data_items, new_dib)
                 self.destinationInformationBase.append(new_dib)
+                self.recent_events.append(RecentEvent(RecentEvent.TYPE_DEST_UP, new_dib.macAddress,
+                                                      new_dib.ipv4Address))
 
                 response_msg = MessagePdu(MessageType.DESTINATION_UP_RESPONSE_MESSAGE)
                 response_msg.data_items.append(MacAddress(new_dib.macAddress))
@@ -141,6 +154,9 @@ class DLEPSession:
                 log.debug("--> got destination down message")
                 dib_to_remove = DestinationInformationBase()
                 self.process_data_items(pdu.data_items, dib_to_remove)
+                self.recent_events.append(RecentEvent(RecentEvent.TYPE_DEST_DOWN, dib_to_remove.macAddress,
+                                                      dib_to_remove.ipv4Address))
+
                 entries_to_remove = list(filter(lambda x: dib_to_remove.macAddress.lower() == x.macAddress.lower(),
                                          self.destinationInformationBase))
                 for x in entries_to_remove:
@@ -278,6 +294,7 @@ class DLEPSession:
 
     def get_information_json_string(self):
         json_data = dict()
+        json_data['events'] = []
         json_data['destinations'] = []
         json_data['peer'] = {
             'tcp_port': self.peerTcpPort,
@@ -303,6 +320,15 @@ class DLEPSession:
             }
             json_data['destinations'].append(destination_data)
 
+        for event in self.recent_events:
+            ev_data = {
+                'event-type': event.type,
+                'ipv4-addr': event.ipv4_addr,
+                'mac-addr': event.node_mac_addr
+            }
+            json_data['events'].append(ev_data)
+
+        self.recent_events.clear()
         json_str = json.dumps(json_data)
         return json_str
 
