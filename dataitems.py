@@ -606,3 +606,44 @@ class IPv4Address:
         log.debug("RX: DataItemIPv4Address {}".format(self.ipaddr))
 
         return self.len
+
+
+################################################################################
+#  Loss Rate
+
+#  0                   1                   2                   3
+#  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+# +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+# | Data Item Type                | Length                        |
+# +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+# |     LOSS      |
+# +-+-+-+-+-+-+-+-+
+
+class LossRate:
+    def __init__(self, adr=""):
+        self.type = int(DataItemType.IPV4_ADDRESS)
+        self.len = 1
+        self.loss = 0
+
+    def to_buffer(self):
+        ipid = int_from_bytes(socket.inet_aton(self.ipaddr))
+        packet = bytearray()
+        packet.extend(struct.pack("!HHb",
+                                  int(self.type),            # 0: Data Item Type
+                                  self.len,                  # 1: Length
+                                  self.loss,                # 2: Flags
+                                  ))
+        return packet
+
+    def from_buffer(self, buffer):
+        if len(buffer) < 1:
+            log.error("RX: DataItemLossRate.from_buffer() FAILED with: Message to small")
+            return 0
+
+        unpacked_data = struct.unpack('!HHb', buffer)
+        self.type = DataItemType(unpacked_data[0])
+        self.len = unpacked_data[1]
+        self.loss = unpacked_data[2]
+        log.debug("RX: DataItemLossRate {}".format(self.loss))
+
+        return self.len

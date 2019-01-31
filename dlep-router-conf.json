@@ -5,7 +5,7 @@
   },
 
   "router" : {
-    "interfaces" : ["eth0", "eth1"]
+    "interfaces" : ["eth0"]
   },
 
   "rest-if" : {

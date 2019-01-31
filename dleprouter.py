@@ -57,6 +57,7 @@ class DestinationInformationBase:
         self.currDatarateRx = 0
         self.currDatarateTx = 0
         self.latency = 0
+        self.loss = 0
 
 
 class RecentEvent:
@@ -234,6 +235,8 @@ class DLEPSession:
                 information_base.macAddress = item.adr
             elif item.type == DataItemType.IPV4_ADDRESS:
                 information_base.ipv4Address = item.ipaddr
+            elif item.type == DataItemType.LOSS_RATE:
+                information_base.loss = item.loss
 
     async def enter_session_initialisation_state(self):
         log.debug("entering SESSION_INITIALISATION_STATE...")
@@ -286,7 +289,7 @@ class DLEPSession:
             log.info("Max. Datarate TX - {}".format(dest.maxDatarateTx))
             log.info("Cur. Datarate RX - {}".format(dest.currDatarateRx))
             log.info("Cur. Datarate TX - {}".format(dest.currDatarateTx))
-            log.info("Latency          - {}".format(dest.latency))
+            log.info("Loss Rate        - {}".format(dest.loss))
 
         # TODO: maybe this is not the best place to call it
         if self.update_callback is not None:
@@ -316,7 +319,7 @@ class DLEPSession:
                 'max_datarate_tx': dest.maxDatarateTx,
                 'cur_datarate_rx': dest.currDatarateRx,
                 'cur_datarate_tx': dest.currDatarateTx,
-                'latency': dest.latency
+                'loss': dest.loss
             }
             json_data['destinations'].append(destination_data)
 
@@ -392,6 +395,8 @@ def extract_all_dataitems(message):
             item = MacAddress()
         elif item_type_current == DataItemType.IPV4_ADDRESS:
             item = IPv4Address()
+        elif item_type_current == DataItemType.LOSS_RATE:
+            item = LossRate()
         else:
             log.warning("unknown dataitem type")
 
