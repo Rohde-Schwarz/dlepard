@@ -14,7 +14,7 @@ import urllib.request
 from helperfunctions import *
 from dataitems import *
 from udpproxy import *
-from heartbeat_timer import *
+from heartbeattimer import *
 
 log = logging.getLogger("myLog")
 log.addHandler(logging.StreamHandler(sys.stdout))
