@@ -7,9 +7,6 @@ import socket
 import struct
 
 
-
-
-
 class UDPProxy(asyncio.DatagramProtocol):  # cli.Observer):
     def __init__(self, ipv4adr, port, interface, receive_handler, loop=None, multicast=False):
         # The event loop

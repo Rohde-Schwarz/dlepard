@@ -8,18 +8,8 @@ import sys
 from items_specification import *
 from helperfunctions import *
 
-sys.path.append('../modules/radio')
 
-log = logging.getLogger("hdremu")
-fh = logging.FileHandler('/var/logs/tmp/trace.txt')
-fh.setLevel(logging.WARNING)
-formatter = logging.Formatter('%(asctime)s %(message)s')
-fh.setFormatter(formatter)
-log.addHandler(fh)
-sh = logging.StreamHandler(sys.stdout)
-sh.setLevel(logging.DEBUG)
-log.addHandler(sh)
-log.setLevel(logging.DEBUG)
+log = logging.getLogger("myLog")
 
 PROG_NAME = "DLEP_ROUTER"
 

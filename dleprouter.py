@@ -17,15 +17,9 @@ from dataitems import *
 from udpproxy import *
 from heartbeat_timer import *
 
-sys.path.append('../modules/radio')
-
-log = logging.getLogger("hdremu")
-fh = logging.FileHandler('/var/logs/tmp/trace.txt')
-formatter = logging.Formatter('%(asctime)s %(message)s')
-fh.setFormatter(formatter)
-# log.addHandler(fh)
-# log.addHandler(logging.StreamHandler(sys.stdout))
-#log.setLevel(logging.DEBUG)
+log = logging.getLogger("myLog")
+log.addHandler(logging.StreamHandler(sys.stdout))
+log.setLevel(logging.DEBUG)
 
 PROG_NAME = "DLEP_ROUTER"
 
