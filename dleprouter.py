@@ -12,7 +12,6 @@ import urllib.error
 import urllib.request
 
 from helperfunctions import *
-from items_specification import *
 from dataitems import *
 from udpproxy import *
 from heartbeat_timer import *
