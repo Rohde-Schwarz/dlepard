@@ -420,7 +420,7 @@ def dlep_router_init(ctx, loop, interfaces):
 def main(ctx):
     loop = asyncio.get_event_loop()
     loop.set_debug(True)
-    interfaces = ctx['args'].interface
+    interfaces = ctx['conf']['router']['interfaces']
     sessions = dlep_router_init(ctx, loop, interfaces)
     asyncio.ensure_future(init_logging(sessions))
     try:
@@ -435,7 +435,6 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--configuration", help="configuration", type=str, default=None)
     parser.add_argument("-v", "--verbose", help="verbose", action='store_true', default=False)
-    parser.add_argument("-i", "--interface", type=str, nargs='+', required=True)
     args = parser.parse_args()
     if not args.configuration:
         emsg = "Configuration required, please specify a valid file path, exiting now\n"

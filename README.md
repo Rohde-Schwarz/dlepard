@@ -4,8 +4,11 @@ Implementation for DLEP according to [RFC 8175](https://datatracker.ietf.org/doc
 
 The application is started by the following command:
 ```
-sudo python3 ./dleprouter.py -f dlep-router.conf -i eth0 eth1
+sudo python3 ./dleprouter.py -f dlep-router-conf.json
 ```
+Required command line arguments:
+- -f: path to the config.json file
+
 ### Config
 dlep-router-conf.json is the configuration file that has to be specified at the 
 startup. 
@@ -13,6 +16,9 @@ It contains following information:
 - dlep
    - multicast ipv4 address (according to rfc8175: **_224.0.0.117_**)
    - udp-port (according to rfc8175: **_854_**)
+- router
+   - interfaces: list of the router's interfaces that should be handled as 
+     DLEP interfaces.
 - rest-if
    - broadcast-url: all URLs to the rest APIs that require the DLEP information
      (e.g. the Routing Protocol or the DLEPInfoView)
@@ -84,5 +90,4 @@ The software is licensed under MIT
 
 # Coding Guidlines
 [PEP8](https://www.python.org/dev/peps/pep-0008/)
-
 
