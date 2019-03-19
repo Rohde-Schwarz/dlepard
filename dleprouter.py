@@ -292,9 +292,10 @@ class DLEPSession:
         log.debug("Session Reset")
         self.destinationInformationBase.clear()
         self.recent_events.clear()
+        self.reset_heartbeat_watchdog()
         self.heartbeatTimer.stop()
         self.heartbeatWatchdog.stop()
-        self.heartbeatTime = None
+        self.heartbeatTimer = None
         self.heartbeatWatchdog = None
         # TODO: terminate tcp connection, del tcp proxy
         self.state = DlepSessionState.PEER_DISCOVERY_STATE
