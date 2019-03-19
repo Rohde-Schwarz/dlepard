@@ -301,13 +301,13 @@ class PeerType:
         self.type = DataItemType.PEER_TYPE
         self.flags = 0
         self.description = description
-        self.len = 1 + len(description)
+        self.length = 1 + len(description)
 
     def to_buffer(self):
         packet = bytearray()
         packet.extend(struct.pack("!HHb{}s".format(len(self.description)),
                                   int(self.type),
-                                  self.len,
+                                  self.length,
                                   self.flags,
                                   self.description.encode('utf-8')))
 
@@ -320,7 +320,7 @@ class PeerType:
 
         unpacked_data = struct.unpack('!HHb{}s'.format(len(buffer) - 5), buffer)
         self.type = DataItemType(unpacked_data[0])
-        self.len = unpacked_data[1]
+        self.length = unpacked_data[1]
         self.flags = unpacked_data[2]
         self.description = unpacked_data[3]
         log.debug("RX: DataItem PeerType with description {} SUCCESS".format(self.description))
@@ -346,13 +346,13 @@ class Status:
         self.type = DataItemType.STATUS
         self.status_code = code
         self.text = text
-        self.len = 1 + len(text)
+        self.length = 1 + len(text)
 
     def to_buffer(self):
         packet = bytearray()
-        packet.extend(struct.pack('!HHb{}s'.format(len(self.text)),
+        packet.extend(struct.pack('!HHB{}s'.format(len(self.text)),
                                   int(self.type),
-                                  self.len,
+                                  self.length,
                                   int(self.status_code),
                                   self.text.encode('utf-8')))
         return packet
@@ -364,7 +364,7 @@ class Status:
 
         unpacked_data = struct.unpack('!HHb{}s'.format(len(buffer) - 5), buffer)
         self.type = DataItemType(unpacked_data[0])
-        self.len = unpacked_data[1]
+        self.length = unpacked_data[1]
         self.status_code = StatusCode(unpacked_data[2])
         self.text = unpacked_data[3]
         log.debug("RX: DataItem Status with text {} SUCCESS".format(self.text))

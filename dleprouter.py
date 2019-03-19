@@ -18,7 +18,7 @@ from heartbeattimer import *
 
 log = logging.getLogger("myLog")
 log.addHandler(logging.StreamHandler(sys.stdout))
-log.setLevel(logging.INFO)
+log.setLevel(logging.DEBUG)
 
 PROG_NAME = "DLEP_ROUTER"
 
@@ -282,17 +282,17 @@ class DLEPSession:
         self.reset_heartbeat_watchdog()
 
         sessionTerminationMessage = MessagePdu(MessageType.SESSION_TERMINATION_MESSAGE)
-        sessionTerminationMessage.data_items.append(Status(StatusCode.TIMED_OUT), text="Heartbeats missed!")
+        sessionTerminationMessage.data_items.append(Status(StatusCode.TIMED_OUT, "missed Heatbeats!"))
 
-        log.debug("sending Termintaion Message")
+        log.debug("sending Termination Message")
         self.tcpProxy.send_msg(sessionTerminationMessage.to_buffer())
 
     def session_reset(self):
         self.state = DlepSessionState.SESSION_RESET_STATE
         log.debug("Session Reset")
+        self.reset_heartbeat_watchdog()
         self.destinationInformationBase.clear()
         self.recent_events.clear()
-        self.reset_heartbeat_watchdog()
         self.heartbeatTimer.stop()
         self.heartbeatWatchdog.stop()
         self.heartbeatTimer = None

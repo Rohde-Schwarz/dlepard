@@ -5,7 +5,7 @@
   },
 
   "router" : {
-    "interfaces" : ["eth0"]
+    "interfaces" : ["enp2s0"]
   },
 
   "rest-if" : {
