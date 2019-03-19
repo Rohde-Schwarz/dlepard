@@ -18,7 +18,7 @@ from heartbeattimer import *
 
 log = logging.getLogger("myLog")
 log.addHandler(logging.StreamHandler(sys.stdout))
-log.setLevel(logging.DEBUG)
+log.setLevel(logging.INFO)
 
 PROG_NAME = "DLEP_ROUTER"
 
@@ -118,7 +118,7 @@ class DLEPSession:
         log.debug("EXTRACTED message PDU type {} len {}".format(pdu.type, pdu.len))
 
         pdu.data_items = extract_all_dataitems(message[MESSAGE_HEADER_LENGTH:])
-
+        ##################################################################################################
         if self.state == DlepSessionState.SESSION_INITIALISATION_STATE:
             if pdu.type == MessageType.SESSION_INITIALISATION_RESPONSE_MESSAGE:
                 for item in pdu.data_items:
@@ -128,6 +128,7 @@ class DLEPSession:
                             self.print_destination_information_base(peer=True)
                             self.enter_in_session_state()
 
+        ##################################################################################################
         elif self.state == DlepSessionState.IN_SESSION_STATE:
             if pdu.type == MessageType.DESTINATION_UP_MESSAGE:
                 log.debug("--> got destination up message")
@@ -173,12 +174,26 @@ class DLEPSession:
                         self.destinationInformationBase[i] = new_dib
 
                 self.print_destination_information_base(peer=True)
+
             elif pdu.type == MessageType.HEARTBEAT_MESSAGE:
                 log.debug("-> received Heartbeat Message")
 
+            elif pdu.type == MessageType.SESSION_TERMINATION_MESSAGE:
+                log.debug("--> got session termination message")
+                response_msg = MessagePdu(MessageType.SESSION_TERMINATION_RESPONSE_MESSAGE)
+                self.tcpProxy.send_msg(response_msg.to_buffer())
+                self.session_reset()
+
+
+        ##################################################################################################
+        elif self.state == DlepSessionState.SESSION_TERMINATION_STATE:
+            if pdu.type == MessageType.SESSION_TERMINATION_RESPONSE_MESSAGE:
+                log.debug("--> got session termination response message")
+                self.session_reset()
+
     def start_heartbeat_timer(self):
             # TODO: this should be peerHeartbeat!!
-            self.heartbeatTimer = HeartbeatTimer(self.ownHeartbeatInterval/1000, self.heartbeat_callback)
+            self.heartbeatTimer = HeartbeatTimer((self.ownHeartbeatInterval/1000)+2, self.heartbeat_callback)
             self.heartbeatTimer.start()
 
     def restart_heartbeat_timer(self):
@@ -193,7 +208,7 @@ class DLEPSession:
         self.tcpProxy.send_msg(heartbeat_pdu.to_buffer())
 
     def start_watchdog_timer(self):
-        self.heartbeatWatchdog = HeartbeatTimer(self.ownHeartbeatInterval/1000, self.watchdog_callback)
+        self.heartbeatWatchdog = HeartbeatTimer((self.ownHeartbeatInterval/1000)+2, self.watchdog_callback)
         self.heartbeatWatchdog.start()
 
     def reset_heartbeat_watchdog(self):
@@ -203,7 +218,12 @@ class DLEPSession:
 
     def watchdog_callback(self):
         self.missedHeartbeats += 1
-        log.warning("!!! missed a heartbeat nr {} from peer !!!".format(self.missedHeartbeats))
+        log.critical("!!! missed a heartbeat nr {} from peer !!!".format(self.missedHeartbeats))
+
+        if (self.state == DlepSessionState.IN_SESSION_STATE) and (self.missedHeartbeats > 3):
+            self.enter_session_termination_state()
+        if (self.state == DlepSessionState.SESSION_TERMINATION_STATE) and (self.missedHeartbeats > 4):
+            self.session_reset()
 
     def process_data_items(self, item_array, information_base: DestinationInformationBase):
         for item in item_array:
@@ -255,6 +275,31 @@ class DLEPSession:
         log.debug("entering IN_SESSION_STATE")
         self.start_heartbeat_timer()
         self.start_watchdog_timer()
+
+    def enter_session_termination_state(self):
+        self.state = DlepSessionState.SESSION_TERMINATION_STATE
+        log.debug("entering SESSION_TERMINATION_STATE")
+        self.reset_heartbeat_watchdog()
+
+        sessionTerminationMessage = MessagePdu(MessageType.SESSION_TERMINATION_MESSAGE)
+        sessionTerminationMessage.data_items.append(Status(StatusCode.TIMED_OUT), text="Heartbeats missed!")
+
+        log.debug("sending Termintaion Message")
+        self.tcpProxy.send_msg(sessionTerminationMessage.to_buffer())
+
+    def session_reset(self):
+        self.state = DlepSessionState.SESSION_RESET_STATE
+        log.debug("Session Reset")
+        self.destinationInformationBase.clear()
+        self.recent_events.clear()
+        self.heartbeatTimer.stop()
+        self.heartbeatWatchdog.stop()
+        self.heartbeatTime = None
+        self.heartbeatWatchdog = None
+        # TODO: terminate tcp connection, del tcp proxy
+        self.state = DlepSessionState.PEER_DISCOVERY_STATE
+        log.debug("entering PEER_DISCOVERY_STATE")
+
 
     def print_destination_information_base(self, peer=False):
         if peer:
@@ -340,7 +385,7 @@ class DLEPSession:
                 discovery_pdu = SignalPdu(SignalType.PEER_DISCOVERY_SIGNAL)
                 pdu = discovery_pdu.to_buffer()
 
-                log.debug("sending discovery signal of len {}".format(len(pdu)))
+                log.info("sending discovery signal of len {}".format(len(pdu)))
                 self.udpProxy.send_msg(pdu)
 
             # Wait 60 seconds to send next Peer Discovery signal
@@ -361,7 +406,7 @@ def extract_all_dataitems(message):
         length_current_item += 4  # we need the type and length fields too
 
         if (analyzed_len + length_current_item) > total_len:
-            log.error("RX: length of Data Item exceeded total buffer length")
+            log.warning("RX: length of Data Item exceeded total buffer length")
             return all_data_items
 
         item = None
