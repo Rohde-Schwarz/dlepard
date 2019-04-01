@@ -1,12 +1,8 @@
 import asyncio
-import fnctl
-import os
-import socket
-import struct
 
 
 class TCPProxy(asyncio.Protocol):
-    def __init(self, ipv4adr, port, interface, receive_handler, loop=None):
+    def __init__(self, ipv4adr, port, interface, receive_handler, loop=None):
         if loop is None:
             self.loop = asyncio.get_event_loop()
         else:
@@ -28,4 +24,3 @@ class TCPProxy(asyncio.Protocol):
     async def start(self):
         coro = self.loop.create_connection(self, self.ip_addr, self.port)
         await asyncio.wait_for(coro, 5)
-
