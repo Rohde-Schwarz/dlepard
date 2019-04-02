@@ -3,15 +3,12 @@
 import logging
 import socket
 import struct
-import sys
+from enum import IntEnum
 
 from helperfunctions import *
 
-
 log = logging.getLogger("myLog")
-
 PROG_NAME = "DLEP_ROUTER"
-from enum import IntEnum
 
 
 class SessionState(IntEnum):
@@ -103,26 +100,29 @@ SIGNAL_HEADER_SIZE = 8
 
 class SignalPdu:
     def __init__(self, signaltype: SignalType = SignalType.RESERVED):
-        self.type = signaltype               # The type of the PDU
-        self.len = 0                         # The length of the PDU in bytes
-        self.data_items = []                 # List of data items included in the signal
+        self.type = signaltype  # The type of the PDU
+        self.len = 0            # The length of the PDU in bytes
+        self.data_items = []    # List of data items included in the signal
 
     def from_buffer(self, buffer):
         if len(buffer) < SIGNAL_HEADER_SIZE:
             log.error('SignalPdu.from_buffer() FAILED with: Message too small')
             return 0
-        unpacked_data = struct.unpack('!ccccHH', buffer)
 
+        unpacked_data = struct.unpack('!ccccHH', buffer)
         # check if its a valid DLEP signal
-        if unpacked_data[0] == b'D' and unpacked_data[1] == b'L'\
-                and unpacked_data[2] == b'E' and unpacked_data[3] == b'P':
+        if unpacked_data[0] == b'D' \
+                and unpacked_data[1] == b'L'\
+                and unpacked_data[2] == b'E' \
+                and unpacked_data[3] == b'P':
             self.type = SignalType(unpacked_data[4])
             self.len = int(unpacked_data[5])
             log.debug("Received Signal Pdu with len {}".format(self.len))
             return self.len
-        else:
-            log.error("RX: SignalPdu.from_buffer() FAILED with: no valid DLEP header")
-            return -1
+
+        log.error("RX: SignalPdu.from_buffer() FAILED with:"
+                  " no valid DLEP header")
+        return -1
 
     def to_buffer(self):
         packet = bytearray()
@@ -131,8 +131,8 @@ class SignalPdu:
                                   'L'.encode('ascii'),
                                   'E'.encode('ascii'),
                                   'P'.encode('ascii'),
-                                  int(self.type),            # 0: Data Item Type
-                                  self.len,                  # 1: Length
+                                  int(self.type),  # 0: Data Item Type
+                                  self.len,        # 1: Length
                                   ))
 
         for item in self.data_items:
@@ -208,30 +208,33 @@ class DataItemIp4ConnPt:
         self.tcp_port = 0
 
     def log_rx(self):
-        log.debug('-> DATA_ITEM_Ip4_Conn_Pt - ipaddr {} - tcp-port: {}'.format(self.ipaddr, self.tcp_port))
+        log.debug('-> DATA_ITEM_Ip4_Conn_Pt -'
+                  ' ipaddr {} - tcp-port: {}'.format(self.ipaddr, self.tcp_port))
 
     def to_buffer(self):
         ipid = int_from_bytes(socket.inet_aton(self.ipaddr))
         packet = bytearray()
         packet.extend(struct.pack("!HHbIH",
-                                  int(self.type),            # 0: Data Item Type
-                                  self.len,                  # 1: Length
-                                  self.flags,                # 2: Flags
-                                  ipid,                      # 3: Modem IP-Address
-                                  self.tcp_port              # 4: Modem TCP Port
+                                  int(self.type),  # 0: Data Item Type
+                                  self.len,        # 1: Length
+                                  self.flags,      # 2: Flags
+                                  ipid,            # 3: Modem IP-Address
+                                  self.tcp_port    # 4: Modem TCP Port
                                   ))
         return packet
 
     def from_buffer(self, buffer):
         if len(buffer) < DATA_ITEM_IP4_CONN_PT_LEN:
-            log.error("RX: DataItemIp4ConnPt.from_buffer() FAILED with: Message to small")
+            log.error("RX: DataItemIp4ConnPt.from_buffer() FAILED with:"
+                      " Message to small")
             return 0
 
         unpacked_data = struct.unpack('!HHbIH', buffer)
         self.type = DataItemType(unpacked_data[0])
         self.len = unpacked_data[1]
         if self.len < DATA_ITEM_IP4_CONN_PT_LEN:
-            log.error("RX: DataItemIp4ConnPt.from_buffer() FAILED with: Message length is invalid")
+            log.error("RX: DataItemIp4ConnPt.from_buffer() FAILED with:"
+                      " Message length is invalid")
             return 0
         self.flags = unpacked_data[2]
         self.ipaddr = socket.inet_ntoa(int_to_bytes(unpacked_data[3]))
@@ -271,14 +274,16 @@ class HeartbeatInterval:
 
     def from_buffer(self, buffer):
         if len(buffer) < HEARTBEAT_INTERVAL_LEN:
-            log.error("RX: DataItemHeartbeatInterval.from_buffer() FAILED with: Message too small")
+            log.error("RX: DataItemHeartbeatInterval.from_buffer() FAILED with:"
+                      " Message too small")
             return 0
 
         unpacked_data = struct.unpack('!HHI', buffer)
         self.type = DataItemType(unpacked_data[0])
         self.len = unpacked_data[1]
         self.heartbeatInterval = unpacked_data[2]
-        log.debug("RX: DataItem HeartbeatInterval with {} ms".format(self.heartbeatInterval))
+        log.debug("RX: DataItem HeartbeatInterval with"
+                  " {} ms".format(self.heartbeatInterval))
         return HEARTBEAT_INTERVAL_LEN
 
 
@@ -309,13 +314,14 @@ class PeerType:
                                   int(self.type),
                                   self.length,
                                   self.flags,
-                                  self.description.encode('utf-8')))
+                                  self.description.encode()))
 
         return packet
 
     def from_buffer(self, buffer):
         if len(buffer) < MINIMUM_LEN_PEER_TYPE:
-            log.error("RX: DataItemPeerType.from_buffer() FAILED with: Message too small")
+            log.error("RX: DataItemPeerType.from_buffer() FAILED with:"
+                      " Message too small")
             return -1
 
         unpacked_data = struct.unpack('!HHb{}s'.format(len(buffer) - 5), buffer)
@@ -323,7 +329,8 @@ class PeerType:
         self.length = unpacked_data[1]
         self.flags = unpacked_data[2]
         self.description = unpacked_data[3]
-        log.debug("RX: DataItem PeerType with description {} SUCCESS".format(self.description))
+        log.debug("RX: DataItem PeerType with description"
+                  " {} SUCCESS".format(self.description))
 
         return 0
 
@@ -354,12 +361,13 @@ class Status:
                                   int(self.type),
                                   self.length,
                                   int(self.status_code),
-                                  self.text.encode('utf-8')))
+                                  self.text.encode()))
         return packet
 
     def from_buffer(self, buffer):
         if len(buffer) < MINIMUM_LEN_PEER_TYPE:
-            log.error("RX: DataItemStatus.from_buffer() FAILED with: Message too small")
+            log.error("RX: DataItemStatus.from_buffer() FAILED with:"
+                      " Message too small")
             return -1
 
         unpacked_data = struct.unpack('!HHb{}s'.format(len(buffer) - 5), buffer)
@@ -401,7 +409,8 @@ class MaximumDatarateReceive:
 
     def from_buffer(self, buffer):
         if len(buffer) < 8:
-            log.error("RX: DataItemMDRR.from_buffer() FAILED with: Message too small")
+            log.error("RX: DataItemMDRR.from_buffer() FAILED with:"
+                      " Message too small")
             return -1
 
         unpacked_data = struct.unpack('!HHQ', buffer)
@@ -442,7 +451,8 @@ class MaximumDatarateTransmit:
 
     def from_buffer(self, buffer):
         if len(buffer) < 8:
-            log.error("RX: DataItemMDRT.from_buffer() FAILED with: Message too small")
+            log.error("RX: DataItemMDRT.from_buffer() FAILED with:"
+                      " Message too small")
             return -1
 
         unpacked_data = struct.unpack('!HHQ', buffer)
@@ -483,7 +493,8 @@ class CurrentDatarateReceive:
 
     def from_buffer(self, buffer):
         if len(buffer) < 8:
-            log.error("RX: DataItemCDRR.from_buffer() FAILED with: Message too small")
+            log.error("RX: DataItemCDRR.from_buffer() FAILED with:"
+                      " Message too small")
             return -1
 
         unpacked_data = struct.unpack('!HHQ', buffer)
@@ -524,7 +535,8 @@ class CurrentDatarateTransmit:
 
     def from_buffer(self, buffer):
         if len(buffer) < 8:
-            log.error("RX: DataItemCDRT.from_buffer() FAILED with: Message too small")
+            log.error("RX: DataItemCDRT.from_buffer() FAILED with:"
+                      " Message too small")
             return -1
 
         unpacked_data = struct.unpack('!HHQ', buffer)
@@ -566,7 +578,8 @@ class Latency:
 
     def from_buffer(self, buffer):
         if len(buffer) < 8:
-            log.error("RX: DataItemLatency.from_buffer() FAILED with: Message too small")
+            log.error("RX: DataItemLatency.from_buffer() FAILED with:"
+                      " Message too small")
             return -1
 
         unpacked_data = struct.unpack('!HHQ', buffer)
@@ -599,19 +612,20 @@ class MacAddress:
 
     def to_buffer(self):
         packet = bytearray()
-        iAry = mac_str_to_int_array(self.adr)
+        iary = mac_str_to_int_array(self.adr)
 
         packet.extend(struct.pack('!HHIH',
                                   self.type,
                                   self.len,
-                                  int.from_bytes(iAry[0:4], 'big'),
-                                  int.from_bytes(iAry[4:6], 'big')))
+                                  int.from_bytes(iary[0:4], 'big'),
+                                  int.from_bytes(iary[4:6], 'big')))
 
         return packet
 
     def from_buffer(self, buffer):
         if len(buffer) < 6:
-            log.error("RX: DataItemMacAddress.from_buffer() FAILED with: Message too small")
+            log.error("RX: DataItemMacAddress.from_buffer() FAILED with:"
+                      " Message too small")
             return -1
 
         unpacked_data = struct.unpack('!HHIH', buffer)
@@ -647,16 +661,17 @@ class IPv4Address:
         ipid = int_from_bytes(socket.inet_aton(self.ipaddr))
         packet = bytearray()
         packet.extend(struct.pack("!HHbI",
-                                  int(self.type),            # 0: Data Item Type
-                                  self.len,                  # 1: Length
-                                  self.flags,                # 2: Flags
-                                  ipid,                      # 3: Modem IP-Address
+                                  int(self.type),  # 0: Data Item Type
+                                  self.len,        # 1: Length
+                                  self.flags,      # 2: Flags
+                                  ipid,            # 3: Modem IP-Address
                                   ))
         return packet
 
     def from_buffer(self, buffer):
         if len(buffer) < 5:
-            log.error("RX: DataItemIp4Address.from_buffer() FAILED with: Message to small")
+            log.error("RX: DataItemIp4Address.from_buffer() FAILED with:"
+                      " Message to small")
             return 0
 
         unpacked_data = struct.unpack('!HHbI', buffer)
@@ -682,6 +697,7 @@ class IPv4Address:
 
 class LossRate:
     def __init__(self, adr=""):
+        self.ipaddr = adr
         self.type = int(DataItemType.IPV4_ADDRESS)
         self.len = 1
         self.loss = 0
@@ -690,15 +706,16 @@ class LossRate:
         ipid = int_from_bytes(socket.inet_aton(self.ipaddr))
         packet = bytearray()
         packet.extend(struct.pack("!HHb",
-                                  int(self.type),            # 0: Data Item Type
-                                  self.len,                  # 1: Length
-                                  self.loss,                # 2: Flags
+                                  int(self.type),  # 0: Data Item Type
+                                  self.len,        # 1: Length
+                                  self.loss,       # 2: Flags
                                   ))
         return packet
 
     def from_buffer(self, buffer):
         if len(buffer) < 1:
-            log.error("RX: DataItemLossRate.from_buffer() FAILED with: Message to small")
+            log.error("RX: DataItemLossRate.from_buffer() FAILED with:"
+                      " Message to small")
             return 0
 
         unpacked_data = struct.unpack('!HHb', buffer)
