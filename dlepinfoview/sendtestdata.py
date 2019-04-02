@@ -16,16 +16,16 @@ json_data['destinations'] = [
     }
 ]
 json_data['peer'] = {
-    'tcp_port': 'self.peerTcpPort',
-    'heartbeat_interval': 'self.peerHeartbeat',
+    'tcp_port': 'self.peer_tcp_port',
+    'heartbeat_interval': 'self.peer_heartbeat',
     'interface': 'eth1',
-    'peer_type': 'self.peerTcpPort',
-    'ipv4-address': 'self.peerInformationBase.ipv4Address',
-    'max_datarate_rx': 'self.peerInformationBase.maxDatarateRx',
-    'max_datarate_tx': 'self.peerInformationBase.maxDatarateTx',
-    'cur_datarate_rx': 'self.peerInformationBase.currDatarateRx',
-    'cur_datarate_tx': 'self.peerInformationBase.currDatarateTx',
-    'latency': 'self.peerInformationBase.latency'
+    'peer_type': 'self.peer_tcp_port',
+    'ipv4-address': 'self.peer_information_base.ipv4_address',
+    'max_datarate_rx': 'self.peer_information_base.max_datarate_rx',
+    'max_datarate_tx': 'self.peer_information_base.max_datarate_tx',
+    'cur_datarate_rx': 'self.peer_information_base.curr_datarate_rx',
+    'cur_datarate_tx': 'self.peer_information_base.curr_datarate_tx',
+    'latency': 'self.peer_information_base.latency'
 }
 
 proxy_support = urllib.request.ProxyHandler({})
