@@ -81,13 +81,11 @@ Webserver that provides a simple WEB-GUI to view the current Data from DLEP Rout
 The Webserver provides a REST-API where the DLEP plugin can push its information to.
 The web GUI can be accessed by any webbrowser on http://localhost:8080/
 
+# Contribution
+- Please follow [PEP8](https://www.python.org/dev/peps/pep-0008/) Coding Guidlines.
+- The [Code of Conduct](./CODE_OF_CONDUCT.md) has to be respected.
+
 # License
-The software is licensed under MIT
-[License](./LICENSE)
+Copyright (c) Rohde & Schwarz GmbH. & Co. KG. All rights reserved.
 
-# Code of Conduct
-[Code of Conduct](./CODE_OF_CONDUCT.md)
-
-# Coding Guidlines
-[PEP8](https://www.python.org/dev/peps/pep-0008/)
-
+The software is licensed under MIT [License](./LICENSE)
