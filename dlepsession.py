@@ -119,8 +119,11 @@ class DLEPSession:
                                                   dib_to_remove.mac_address,
                                                   dib_to_remove.ipv4_address))
 
-            entries_to_remove = list(filter(lambda x: dib_to_remove.mac_address.lower() == x.macAddress.lower(),
-                                            self.destination_information_base))
+            list_filter = filter(
+                lambda x: dib_to_remove.mac_address.lower() == x.mac_address.lower(),
+                self.destination_information_base
+            )
+            entries_to_remove = list(list_filter)
             for x in entries_to_remove:
                 self.destination_information_base.remove(x)
 
@@ -137,7 +140,7 @@ class DLEPSession:
             self.process_data_items(pdu.data_items, new_dib)
 
             for i, entry in enumerate(self.destination_information_base):
-                if entry.macAddress.lower() == new_dib.mac_address.lower():
+                if entry.mac_address.lower() == new_dib.mac_address.lower():
                     self.destination_information_base[i] = new_dib
 
             self.print_destination_information_base(peer=True)
@@ -226,6 +229,10 @@ class DLEPSession:
             self.start_heartbeat_timer()
 
     def heartbeat_callback(self):
+        """
+        Callback function for signaling when the timer is expired.
+        Leads to a new transmission of the heatbeat message
+        """
         log.debug("sending Heartbeat")
         heartbeat_pdu = MessagePdu(MessageType.HEARTBEAT_MESSAGE)
         heartbeat_pdu.len = 0
@@ -243,6 +250,10 @@ class DLEPSession:
             self.heartbeat_watchdog.reset()
 
     def watchdog_callback(self):
+        """
+        Callback function for signalling when the watchdog is expired
+        Indicates that a heatbeat from the peer has been missed
+        """
         self.missed_heartbeats += 1
         log.critical("!!! missed a heartbeat "
                      "nr {} from peer !!!".format(self.missed_heartbeats))
@@ -257,6 +268,14 @@ class DLEPSession:
     def process_data_items(self,
                            item_array,
                            information_base: DestinationInformationBase):
+        """
+        Applies the received Data Items to the according fields of the
+        destination information base
+        Args:
+            item_array: list where all the new Data Items are stored
+            information_base: Destination information base where the new
+                              items are applied to
+        """
         for item in item_array:
             if item.type == DataItemType.IPV4_CONNECTION_POINT:
                 information_base.ipv4_address = item.ipaddr
@@ -358,12 +377,12 @@ class DLEPSession:
         log.info("===========================================================")
         for dest in self.destination_information_base:
             log.info("--------------------------------------------------------")
-            log.info("MAC Address      - {}".format(dest.macAddress))
-            log.info("IPv4 Address     - {}".format(dest.ipv4Address))
-            log.info("Max. Datarate RX - {}".format(dest.maxDatarateRx))
-            log.info("Max. Datarate TX - {}".format(dest.maxDatarateTx))
-            log.info("Cur. Datarate RX - {}".format(dest.currDatarateRx))
-            log.info("Cur. Datarate TX - {}".format(dest.currDatarateTx))
+            log.info("MAC Address      - {}".format(dest.mac_address))
+            log.info("IPv4 Address     - {}".format(dest.ipv4_address))
+            log.info("Max. Datarate RX - {}".format(dest.max_datarate_rx))
+            log.info("Max. Datarate TX - {}".format(dest.max_datarate_tx))
+            log.info("Cur. Datarate RX - {}".format(dest.curr_datarate_rx))
+            log.info("Cur. Datarate TX - {}".format(dest.curr_datarate_tx))
             log.info("Loss Rate        - {}".format(dest.loss))
 
         # TODO: maybe this is not the best place to call it
@@ -388,12 +407,12 @@ class DLEPSession:
         }
         for dest in self.destination_information_base:
             destination_data = {
-                'mac-address': dest.macAddress,
-                'ipv4-address': dest.ipv4Address,
-                'max_datarate_rx': dest.maxDatarateRx,
-                'max_datarate_tx': dest.maxDatarateTx,
-                'cur_datarate_rx': dest.currDatarateRx,
-                'cur_datarate_tx': dest.currDatarateTx,
+                'mac-address': dest.mac_address,
+                'ipv4-address': dest.ipv4_address,
+                'max_datarate_rx': dest.max_datarate_rx,
+                'max_datarate_tx': dest.max_datarate_tx,
+                'cur_datarate_rx': dest.curr_datarate_rx,
+                'cur_datarate_tx': dest.curr_datarate_tx,
                 'loss': dest.loss
             }
             json_data['destinations'].append(destination_data)
@@ -419,6 +438,7 @@ class DLEPSession:
     async def execute(self):
         while self.running:
             if self.state == DlepSessionState.PEER_DISCOVERY_STATE:
+                # sending the peer discovery messages
                 discovery_pdu = SignalPdu(SignalType.PEER_DISCOVERY_SIGNAL)
                 pdu = discovery_pdu.to_buffer()
 
@@ -436,6 +456,13 @@ class DLEPSession:
         return dataitem_type, length
 
     def extract_all_dataitems(self, message):
+        """
+        Extracts all the Data Items from the received tcp message
+        Args:
+            message: message buffer received over tcp
+
+        Returns: list with all data items extracted from the given buffer
+        """
         total_len = len(message)
         analyzed_len = 0
         all_data_items = []
