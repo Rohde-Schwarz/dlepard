@@ -8,8 +8,25 @@ import struct
 
 
 class UDPProxy(asyncio.DatagramProtocol):  # cli.Observer):
+    """
+    Handles the UDP connection using asyncio DatagramProtocol and provides
+    a simple interface to send and receive data.
+
+    UDPProxy can handle multicast as well as unicast sockets
+    """
     def __init__(self, ipv4adr, port, interface, receive_handler, loop=None,
                  multicast=False):
+        """
+        Create a new instance of UDPProxy
+        Args:
+            ipv4adr: the IPv4 address you want to communicate with
+            port: the UDP port for the socket
+            interface: name of the OS interface name (e.g. enp1s0)
+            receive_handler: this function will be called when a new message
+                             is received
+            loop: asyncio main loop
+            multicast: True if multicast socket, False if unicast socket
+        """
         # The event loop
         if loop is None:
             self.loop = asyncio.get_event_loop()
@@ -53,6 +70,7 @@ class UDPProxy(asyncio.DatagramProtocol):  # cli.Observer):
             self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF,
                                  value)
         else:
+            # create unicast socket
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     async def start(self):
@@ -64,9 +82,16 @@ class UDPProxy(asyncio.DatagramProtocol):  # cli.Observer):
 
     @staticmethod
     def get_ip_address(if_name):
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        """
+        This retreives the configured IP address of the given interface
+        Args:
+            if_name: name of the OS interface (e.g. enp1s0)
+
+        Returns: The ip address of the given interface (string)
+        """
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         arg = struct.pack('256s', if_name[:15].encode('utf-8'))
-        res = fcntl.ioctl(s.fileno(),
+        res = fcntl.ioctl(sock.fileno(),
                           0x8915,  # SIOCGIFADDR
                           arg)
         return socket.inet_ntoa(res[20:24])
@@ -75,8 +100,8 @@ class UDPProxy(asyncio.DatagramProtocol):  # cli.Observer):
         self.transport = transport
         # print('Connection is made:'
 
-    def datagram_received(self, message, addr):
-        self.receive_handler(message, addr)
+    def datagram_received(self, data, addr):
+        self.receive_handler(data, addr)
 
     def error_received(self, exc):
         print('Error received:', exc)

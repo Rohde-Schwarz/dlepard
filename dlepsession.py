@@ -1,7 +1,8 @@
+import asyncio
 import json
-from udpproxy import *
+from udpproxy import UDPProxy
 from dataitems import *
-from heartbeattimer import *
+from heartbeattimer import HeartbeatTimer
 
 
 class DlepSessionState(IntEnum):
@@ -9,14 +10,17 @@ class DlepSessionState(IntEnum):
     class DlepSessionState represents all the states of the DLEP Session as
     defined in RFC8175
     """
-    PEER_DISCOVERY_STATE = 0,
-    SESSION_INITIALISATION_STATE = 1,
-    IN_SESSION_STATE = 2,
-    SESSION_TERMINATION_STATE = 3,
+    PEER_DISCOVERY_STATE = 0
+    SESSION_INITIALISATION_STATE = 1
+    IN_SESSION_STATE = 2
+    SESSION_TERMINATION_STATE = 3
     SESSION_RESET_STATE = 4
 
 
 class DestinationInformationBase:
+    """
+    Encapsulates all information related to the destinations
+    """
     def __init__(self):
         self.mac_address = None
         self.ipv4_address = None
@@ -29,6 +33,11 @@ class DestinationInformationBase:
 
 
 class RecentEvent:
+    """
+    Encapsulates all information about recently occured events like
+    destination-up destination-down messages. This information has to be
+    forwarded by the rest-api.
+    """
     TYPE_DEST_DOWN = "dest-down"
     TYPE_DEST_UP = "dest-up"
 
@@ -40,6 +49,15 @@ class RecentEvent:
 
 class DLEPSession:
     def __init__(self, conf, interface, loop=None, update_callback=None):
+        """
+        Create a new instance of a DLEP session for a single interface
+        Args:
+            conf: configuration to be registered
+            interface: Name of the OS interface (e.g. enp1s0)
+            loop: asyncio main loop
+            update_callback: this method is called for signalling major updates
+                             of the internal database
+        """
         self.dlep_mcast_ipv4addr = conf["dlep"]["mcast-ip4addr"]
         self.dlep_udp_port = conf["dlep"]["udp-port"]
 
@@ -91,6 +109,9 @@ class DLEPSession:
     def process_in_session_tcp_message(self, pdu):
         """
         Handles all the TCP messages in the IN_SESSION_STATE
+        - updates destination information base
+        - performs state transitions if required
+        - sends response messages
         Args:
             pdu: message pdu extracted from tcp message including all dataitems
 
@@ -217,11 +238,11 @@ class DLEPSession:
             self.process_session_termination_tcp_message(pdu)
 
     def start_heartbeat_timer(self):
-            # TODO: this should be peer_heartbeat!!
-            timeout = (self.own_heartbeat_interval / 1000) + 2
-            self.heartbeat_timer = HeartbeatTimer(timeout,
-                                                  self.heartbeat_callback)
-            self.heartbeat_timer.start()
+        # TODO: this should be peer_heartbeat!!
+        timeout = (self.own_heartbeat_interval / 1000) + 2
+        self.heartbeat_timer = HeartbeatTimer(timeout,
+                                              self.heartbeat_callback)
+        self.heartbeat_timer.start()
 
     def restart_heartbeat_timer(self):
         if self.heartbeat_timer is not None:

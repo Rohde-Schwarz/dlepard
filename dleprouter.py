@@ -1,11 +1,14 @@
 # SPDX-License-Identifier: MIT
 
+import asyncio
+import json
 import sys
 import argparse
 import urllib.error
 import urllib.request
+import logging
 
-from dlepsession import *
+from dlepsession import DLEPSession
 
 log = logging.getLogger("myLog")
 log.addHandler(logging.StreamHandler(sys.stdout))

@@ -4,7 +4,15 @@ import asyncio
 
 
 class HeartbeatTimer:
+    """
+    Simple Asynchronous Timer that expires after a given time
+    """
     def __init__(self, timeout, callback):
+        """ Initialize the timer
+        Args:
+            timeout: timeout in seconds
+            callback: this function will be called when the timer expires
+        """
         self._timeout = timeout
         self._callback = callback
         self._task = None
