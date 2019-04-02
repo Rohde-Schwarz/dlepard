@@ -17,11 +17,21 @@ log.setLevel(logging.DEBUG)
 PROG_NAME = "DLEP_ROUTER"
 
 
-def dlep_router_init(ctx, loop, interfaces):
-    ctx['loop'] = loop
+def dlep_router_init(conf: dict, loop, interfaces: list):
+    """
+    Initialisation of the DLEP router; Starts the DLEP Session for all
+    configured interfaces
+    Args:
+        conf: configuration (read from config.json)
+        loop: asyncio main event loop
+        interfaces: list with all OS interface names as string
+                    (e.g. ['enp1s0', 'enp2s0', ...])
+
+    Returns: list with all session objects
+    """
     sessions = []
     for intf in interfaces:
-        session = DLEPSession(ctx['conf'],
+        session = DLEPSession(conf,
                               intf,
                               loop=loop,
                               update_callback=update_webview)
@@ -32,11 +42,12 @@ def dlep_router_init(ctx, loop, interfaces):
     return sessions
 
 
-def main(ctx):
+def main():
+    conf, args = conf_init()
     loop = asyncio.get_event_loop()
     loop.set_debug(True)
-    interfaces = ctx['conf']['router']['interfaces']
-    sessions = dlep_router_init(ctx, loop, interfaces)
+    interfaces = conf['router']['interfaces']
+    sessions = dlep_router_init(conf, loop, interfaces)
     asyncio.ensure_future(init_logging(sessions))
     try:
         loop.run_forever()
@@ -110,14 +121,6 @@ def conf_init():
     return conf, args
 
 
-def ctx_init():
-    return dict()
-
-
 if __name__ == '__main__':
     sys.stderr.write("{}\n".format(PROG_NAME))
-    conf, args = conf_init()
-    ctx = ctx_init()
-    ctx['conf'] = conf
-    ctx['args'] = args
-    main(ctx)
+    main()
