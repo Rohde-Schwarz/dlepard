@@ -1,6 +1,7 @@
 # DLEP-Router
 
-Implementation for DLEP according to [RFC 8175](https://datatracker.ietf.org/doc/rfc8175/)
+This repository contains the implementation for DLEP according to 
+[RFC 8175](https://datatracker.ietf.org/doc/rfc8175/)
 
 The application is started by the following command:
 ```
@@ -77,7 +78,8 @@ provided by DLEP.
 ```
 
 # DLEP Information Viewer
-Webserver that provides a simple WEB-GUI to view the current Data from DLEP Router.
+DLEP Information Viewer is a webserver that provides a simple WEB-GUI to view the 
+current Database from DLEP Router.
 The Webserver provides a REST-API where the DLEP plugin can push its information to.
 The web GUI can be accessed by any webbrowser on http://localhost:8080/
 
