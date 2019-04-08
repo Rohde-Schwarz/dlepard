@@ -83,7 +83,8 @@ The web GUI can be accessed by any webbrowser on http://localhost:8080/
 
 # Contribution
 - Please follow [PEP8](https://www.python.org/dev/peps/pep-0008/) Coding Guidlines.
-- The [Code of Conduct](./CODE_OF_CONDUCT.md) has to be respected.
+- The [Code of Conduct](https://github.com/Rohde-Schwarz/rohde-schwarz/blob/master/code-of-conduct.md) 
+has to be respected.
 
 # License
 Copyright (c) Rohde & Schwarz GmbH. & Co. KG. All rights reserved.
