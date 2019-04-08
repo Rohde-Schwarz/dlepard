@@ -59,10 +59,8 @@ def main():
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-f", "--configuration", help="configuration",
-                        type=str, default=None)
-    parser.add_argument("-v", "--verbose", help="verbose", action='store_true',
-                        default=False)
+    parser.add_argument("-f", "--configuration", help="location of configuration file",
+                        type=str, default=None, required=True)
     args = parser.parse_args()
     if not args.configuration:
         emsg = "Configuration required, please specify a valid file path, " \
