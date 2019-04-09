@@ -238,7 +238,7 @@ class DLEPSession:
             self.__process_session_termination_tcp_message(pdu)
 
     def start_heartbeat_timer(self):
-        # TODO: this should be peer_heartbeat!!
+        # TODO: This should be peer_heartbeat
         timeout = (self.own_heartbeat_interval / 1000) + 2
         self.heartbeat_timer = HeartbeatTimer(timeout,
                                               self.heartbeat_callback)
@@ -252,7 +252,7 @@ class DLEPSession:
     def heartbeat_callback(self):
         """
         Callback function for signaling when the timer is expired.
-        Leads to a new transmission of the heatbeat message
+        Leads to a new transmission of the heartbeat message
         """
         log.debug("sending Heartbeat")
         heartbeat_pdu = MessagePdu(MessageType.HEARTBEAT_MESSAGE)
@@ -273,7 +273,7 @@ class DLEPSession:
     def watchdog_callback(self):
         """
         Callback function for signalling when the watchdog is expired
-        Indicates that a heatbeat from the peer has been missed
+        Indicates that a heartbeat from the peer has been missed
         """
         self.missed_heartbeats += 1
         log.critical("!!! missed a heartbeat "
@@ -326,8 +326,8 @@ class DLEPSession:
         log.debug("entering SESSION_INITIALISATION_STATE...")
         self.state = DlepSessionState.SESSION_INITIALISATION_STATE
 
-        # TODO this should NOT be UDP!!!
-        # TODO dont use the multicast address!
+        # TODO: This should NOT be UDP
+        # TODO: Don't use the multicast address
         # - used because arp not implemented yet
         self.tcp_proxy = UDPProxy(self.dlep_mcast_ipv4addr,
                                   self.peer_tcp_port,
@@ -359,7 +359,7 @@ class DLEPSession:
 
         session_termination_message = MessagePdu(MessageType.SESSION_TERMINATION_MESSAGE)
         session_termination_message.data_items.append(Status(StatusCode.TIMED_OUT,
-                                                             "missed Heatbeats!"))
+                                                             "missed Heartbeats!"))
 
         log.debug("sending Termination Message")
         self.tcp_proxy.send_msg(session_termination_message.to_buffer())
@@ -374,7 +374,7 @@ class DLEPSession:
         self.heartbeat_watchdog.stop()
         self.heartbeat_timer = None
         self.heartbeat_watchdog = None
-        # TODO: terminate tcp connection, del tcp proxy
+        # TODO: Terminate tcp connection, del tcp proxy
         self.state = DlepSessionState.PEER_DISCOVERY_STATE
         log.debug("entering PEER_DISCOVERY_STATE")
 
@@ -387,10 +387,10 @@ class DLEPSession:
             log.info("Port             - {}".format(self.peer_tcp_port))
             log.info("Interface        - {}".format(self.interface))
             log.info("Heartbeat        - {}".format(self.peer_heartbeat))
-            log.info("Max. Datarate RX - {}".format(self.peer_information_base.max_datarate_rx))
-            log.info("Max. Datarate TX - {}".format(self.peer_information_base.max_datarate_tx))
-            log.info("Cur. Datarate RX - {}".format(self.peer_information_base.curr_datarate_rx))
-            log.info("Cur. Datarate TX - {}".format(self.peer_information_base.curr_datarate_tx))
+            log.info("Max. data rate RX - {}".format(self.peer_information_base.max_datarate_rx))
+            log.info("Max. data rate TX - {}".format(self.peer_information_base.max_datarate_tx))
+            log.info("Cur. data rate RX - {}".format(self.peer_information_base.curr_datarate_rx))
+            log.info("Cur. data rate TX - {}".format(self.peer_information_base.curr_datarate_tx))
             log.info("Latency          - {}".format(self.peer_information_base.latency))
 
         log.info("===========================================================")
@@ -400,13 +400,13 @@ class DLEPSession:
             log.info("--------------------------------------------------------")
             log.info("MAC Address      - {}".format(dest.mac_address))
             log.info("IPv4 Address     - {}".format(dest.ipv4_address))
-            log.info("Max. Datarate RX - {}".format(dest.max_datarate_rx))
-            log.info("Max. Datarate TX - {}".format(dest.max_datarate_tx))
-            log.info("Cur. Datarate RX - {}".format(dest.curr_datarate_rx))
-            log.info("Cur. Datarate TX - {}".format(dest.curr_datarate_tx))
+            log.info("Max. data rate RX - {}".format(dest.max_datarate_rx))
+            log.info("Max. data rate TX - {}".format(dest.max_datarate_tx))
+            log.info("Cur. data rate RX - {}".format(dest.curr_datarate_rx))
+            log.info("Cur. data rate TX - {}".format(dest.curr_datarate_tx))
             log.info("Loss Rate        - {}".format(dest.loss))
 
-        # TODO: maybe this is not the best place to call it
+        # TODO: Move to TCP callback
         if self.update_callback is not None:
             self.update_callback(self)
 
@@ -492,7 +492,7 @@ class DLEPSession:
             item_type_current, length_current_item = self.extract_itemtype_and_length(
                 message[analyzed_len:analyzed_len+16])
 
-            log.debug("extracting dataitem "
+            log.debug("extracting data item "
                       "type {} and len {}".format(item_type_current,
                                                   length_current_item))
 
@@ -529,13 +529,13 @@ class DLEPSession:
             elif item_type_current == DataItemType.LOSS_RATE:
                 item = LossRate()
             else:
-                log.warning("unknown dataitem type")
+                log.warning("unknown data item type")
 
             if item is not None:
                 length = analyzed_len + length_current_item
                 item.from_buffer(message[analyzed_len: length])
                 all_data_items.append(item)
-                log.debug("found new Dataitem type {}".format(item.type))
+                log.debug("found new data item type {}".format(item.type))
 
             analyzed_len += length_current_item
 
