@@ -1,6 +1,7 @@
 import asyncio
 import json
 from udpproxy import UDPProxy
+from tcpproxy import TCPProxy
 from dataitems import *
 from heartbeattimer import HeartbeatTimer
 
@@ -194,8 +195,7 @@ class DLEPSession:
             message: The message received over UDP
             addr: Address from the transmitter
         """
-        log.debug("received something with len {} from {}".format(len(message),
-                                                                  addr))
+        log.debug("received something with len {} from {}".format(len(message), addr))
         pdu = SignalPdu()
         pdu.from_buffer(message[:SIGNAL_HEADER_SIZE])
         log.debug("EXTRACTED signal PDU type {} len {}".format(pdu.type,
@@ -209,7 +209,7 @@ class DLEPSession:
 
                 asyncio.ensure_future(self.enter_session_initialisation_state())
 
-    def on_tcp_receive(self, message, addr):
+    def on_tcp_receive(self, message):
         """
         Callback function for asyncio tcp receiver.
         Handles the incoming messages according to the DLEP state machine
@@ -219,8 +219,7 @@ class DLEPSession:
         """
         self.reset_heartbeat_watchdog()
 
-        log.debug("received something with len {} from {}".format(len(message),
-                                                                  addr))
+        log.debug("received something with len {}".format(len(message)))
         pdu = MessagePdu()
         pdu.from_buffer(message[:MESSAGE_HEADER_LENGTH])
         log.debug("EXTRACTED message PDU type {} len {}".format(pdu.type,
@@ -329,12 +328,11 @@ class DLEPSession:
         # TODO: This should NOT be UDP
         # TODO: Don't use the multicast address
         # - used because arp not implemented yet
-        self.tcp_proxy = UDPProxy(self.dlep_mcast_ipv4addr,
+        self.tcp_proxy = TCPProxy(self.peer_information_base.ipv4_address,
                                   self.peer_tcp_port,
                                   self.interface,
                                   self.on_tcp_receive,
-                                  self.loop,
-                                  multicast=True)
+                                  self.loop)
 
         await self.tcp_proxy.start()
         log.debug("started tcp Proxy")

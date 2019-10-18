@@ -48,6 +48,8 @@ class UDPProxy(asyncio.DatagramProtocol):  # cli.Observer):
                                       socket.IPPROTO_UDP)
             if hasattr(socket, 'SO_REUSEADDR'):
                 self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            if hasattr(socket, 'SO_REUSEPORT'):
+                self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
 
             self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 0)
             print('socket listens to port {} on if {}'.format(self.port,
