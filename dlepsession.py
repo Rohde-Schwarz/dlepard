@@ -79,7 +79,10 @@ class DLEPSession:
         self.heartbeat_timer = None
         self.heartbeat_watchdog = None
         self.missed_heartbeats = 0
-        self.own_heartbeat_interval = 5000
+        if "heartbeat-interval-ms" in conf["dlep"]:
+            self.own_heartbeat_interval = conf["dlep"]["heartbeat-interval-ms"]
+        else:
+            self.own_heartbeat_interval = 60000  # See RFC 8175
 
         self.peer_tcp_port = None
         self.peer_type = ""
