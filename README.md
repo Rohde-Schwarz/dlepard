@@ -8,7 +8,7 @@ This repository contains the implementation for the DLEP protocol according to
 The application can be started with the following command:
 
 ```
-sudo python3 ./dleprouter.py -f dlep-router-conf.json
+sudo python3 ./dleprouter.py -f conf-enp3s0.json
 ```
 
 The required command line arguments are:
