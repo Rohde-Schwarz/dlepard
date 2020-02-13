@@ -257,7 +257,7 @@ class Status(DataItem):
                       " Message too small")
             return -1
 
-        unpacked_data = struct.unpack('!HHb{}s'.format(len(buffer) - 5), buffer)
+        unpacked_data = struct.unpack('!HHB{}s'.format(len(buffer) - 5), buffer)
         self.type = DataItemType(unpacked_data[0])
         self.len = unpacked_data[1]
         self.status_code = StatusCode(unpacked_data[2])
