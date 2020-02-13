@@ -54,6 +54,12 @@ class StatusCode(IntEnum):
     SHUTTING_DOWN = 255
 
 
+class DataItem:
+    def __init__(self, item_type, item_len):
+        self.type = item_type
+        self.len = item_len
+
+
 ################################################################################
 #  IPv4 Connection Point
 #
@@ -71,11 +77,13 @@ class StatusCode(IntEnum):
 DATA_ITEM_IP4_CONN_PT_LEN = 5
 
 
-class DataItemIp4ConnPt:
+class DataItemIp4ConnPt(DataItem):
     # TODO: tcp port is optional...??
     def __init__(self):
-        self.type = int(DataItemType.IPV4_CONNECTION_POINT)
-        self.len = DATA_ITEM_IP4_CONN_PT_LEN
+        super().__init__(
+                int(DataItemType.IPV4_CONNECTION_POINT),
+                DATA_ITEM_IP4_CONN_PT_LEN
+        )
         self.flags = 0
         self.ipaddr = ''
         self.tcp_port = 0
@@ -130,10 +138,12 @@ class DataItemIp4ConnPt:
 HEARTBEAT_INTERVAL_LEN = 4
 
 
-class HeartbeatInterval:
+class HeartbeatInterval(DataItem):
     def __init__(self, interval=60000):
-        self.type = DataItemType.HEARTBEAT_INTERVAL
-        self.len = HEARTBEAT_INTERVAL_LEN
+        super().__init__(
+                DataItemType.HEARTBEAT_INTERVAL,
+                HEARTBEAT_INTERVAL_LEN
+        )
         self.heartbeatInterval = interval  # default: 60 seconds
 
     def to_buffer(self):
@@ -174,18 +184,20 @@ class HeartbeatInterval:
 MINIMUM_LEN_PEER_TYPE = 1
 
 
-class PeerType:
+class PeerType(DataItem):
     def __init__(self, description=""):
-        self.type = DataItemType.PEER_TYPE
+        super().__init__(
+                DataItemType.PEER_TYPE,
+                1 + len(description)
+        )
         self.flags = 0
         self.description = description
-        self.length = 1 + len(description)
 
     def to_buffer(self):
         packet = bytearray()
         packet.extend(struct.pack("!HHb{}s".format(len(self.description)),
                                   int(self.type),
-                                  self.length,
+                                  self.len,
                                   self.flags,
                                   self.description.encode()))
 
@@ -199,7 +211,7 @@ class PeerType:
 
         unpacked_data = struct.unpack('!HHb{}s'.format(len(buffer) - 5), buffer)
         self.type = DataItemType(unpacked_data[0])
-        self.length = unpacked_data[1]
+        self.len = unpacked_data[1]
         self.flags = unpacked_data[2]
         self.description = unpacked_data[3]
         log.debug("RX: DataItem PeerType with description"
@@ -221,18 +233,20 @@ class PeerType:
 MINIMUM_LEN_STATUS = 1
 
 
-class Status:
+class Status(DataItem):
     def __init__(self, code=StatusCode.SUCCESS, text=""):
-        self.type = DataItemType.STATUS
+        super().__init__(
+                DataItemType.STATUS,
+                1 + len(text)
+        )
         self.status_code = code
         self.text = text
-        self.length = 1 + len(text)
 
     def to_buffer(self):
         packet = bytearray()
         packet.extend(struct.pack('!HHB{}s'.format(len(self.text)),
                                   int(self.type),
-                                  self.length,
+                                  self.len,
                                   int(self.status_code),
                                   self.text.encode()))
         return packet
@@ -245,7 +259,7 @@ class Status:
 
         unpacked_data = struct.unpack('!HHb{}s'.format(len(buffer) - 5), buffer)
         self.type = DataItemType(unpacked_data[0])
-        self.length = unpacked_data[1]
+        self.len = unpacked_data[1]
         self.status_code = StatusCode(unpacked_data[2])
         self.text = unpacked_data[3]
         log.debug("RX: DataItem Status with text {} SUCCESS".format(self.text))
@@ -266,10 +280,12 @@ class Status:
 # +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 
-class MaximumDatarateReceive:
+class MaximumDatarateReceive(DataItem):
     def __init__(self, bps=0):
-        self.type = DataItemType.MAXIMUM_DATA_RATE_RX
-        self.len = 8
+        super().__init__(
+                DataItemType.MAXIMUM_DATA_RATE_RX,
+                8
+        )
         self.datarate = bps
 
     def to_buffer(self):
@@ -308,10 +324,12 @@ class MaximumDatarateReceive:
 # +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 
-class MaximumDatarateTransmit:
+class MaximumDatarateTransmit(DataItem):
     def __init__(self, bps=0):
-        self.type = DataItemType.MAXIMUM_DATA_RATE_TX
-        self.len = 8
+        super().__init__(
+                DataItemType.MAXIMUM_DATA_RATE_TX,
+                8
+        )
         self.datarate = bps
 
     def to_buffer(self):
@@ -350,10 +368,12 @@ class MaximumDatarateTransmit:
 # +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 
-class CurrentDatarateReceive:
+class CurrentDatarateReceive(DataItem):
     def __init__(self, bps=0):
-        self.type = DataItemType.CURRENT_DATA_RATE_RX
-        self.len = 8
+        super().__init__(
+                DataItemType.CURRENT_DATA_RATE_RX,
+                8
+        )
         self.datarate = bps
 
     def to_buffer(self):
@@ -392,10 +412,12 @@ class CurrentDatarateReceive:
 # +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 
-class CurrentDatarateTransmit:
+class CurrentDatarateTransmit(DataItem):
     def __init__(self, bps=0):
-        self.type = DataItemType.CURRENT_DATA_RATE_TX
-        self.len = 8
+        super().__init__(
+                DataItemType.CURRENT_DATA_RATE_TX,
+                8
+        )
         self.datarate = bps
 
     def to_buffer(self):
@@ -421,7 +443,6 @@ class CurrentDatarateTransmit:
         return 0
 
 
-
 ################################################################################
 #  Latency
 #  0                   1                   2                   3
@@ -435,10 +456,12 @@ class CurrentDatarateTransmit:
 # +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 
-class Latency:
+class Latency(DataItem):
     def __init__(self, latency=0):
-        self.type = DataItemType.LATENCY
-        self.len = 8
+        super().__init__(
+                DataItemType.LATENCY,
+                8
+        )
         self.latency = latency
 
     def to_buffer(self):
@@ -477,10 +500,12 @@ class Latency:
 # +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 
-class MacAddress:
+class MacAddress(DataItem):
     def __init__(self, adr=""):
-        self.type = DataItemType.MAC_ADDRESS
-        self.len = 6
+        super().__init__(
+                DataItemType.MAC_ADDRESS,
+                6
+        )
         self.adr = adr
 
     def to_buffer(self):
@@ -523,10 +548,12 @@ class MacAddress:
 # +-+-+-+-+-+-+-+-+
 
 
-class IPv4Address:
+class IPv4Address(DataItem):
     def __init__(self, adr=""):
-        self.type = int(DataItemType.IPV4_ADDRESS)
-        self.len = 5
+        super().__init__(
+                int(DataItemType.IPV4_ADDRESS),
+                5
+        )
         self.flags = 1
         self.ipaddr = adr
 
@@ -568,11 +595,13 @@ class IPv4Address:
 # |     LOSS      |
 # +-+-+-+-+-+-+-+-+
 
-class LossRate:
+class LossRate(DataItem):
     def __init__(self, adr=""):
+        super().__init__(
+                int(DataItemType.IPV4_ADDRESS),
+                1
+        )
         self.ipaddr = adr
-        self.type = int(DataItemType.IPV4_ADDRESS)
-        self.len = 1
         self.loss = 0
 
     def to_buffer(self):

@@ -49,7 +49,7 @@ class MessageType(IntEnum):
 #  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 #  | Signal Type                   | Length                        |
 #  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-MINIMUM_SIGNAL_LEN = 0  # The minimum length of an SignalPdu
+MINIMUM_SIGNAL_LEN = 0  # The minimum len of an SignalPdu
 SIGNAL_HEADER_SIZE = 8
 
 ################################################################################
@@ -67,7 +67,15 @@ class SignalPdu:
     def __init__(self, signaltype: SignalType = SignalType.RESERVED):
         self.type = signaltype  # The type of the PDU
         self.len = 0            # The length of the PDU in bytes
-        self.data_items = []    # List of data items included in the signal
+        self._data_items = []   # List of data items included in the signal
+
+    @property
+    def data_items(self):
+        return self._data_items
+
+    def append_data_item(self, item):
+        self._data_items.append(item)
+        self.len += item.len
 
     def from_buffer(self, buffer):
         if len(buffer) < SIGNAL_HEADER_SIZE:
@@ -100,7 +108,7 @@ class SignalPdu:
                                   self.len,        # 1: Length
                                   ))
 
-        for item in self.data_items:
+        for item in self._data_items:
             packet += item.to_buffer()
 
         return packet
@@ -109,8 +117,16 @@ class SignalPdu:
 class MessagePdu:
     def __init__(self, messagetype=MessageType.RESERVED):
         self.type = messagetype
-        self.len = MESSAGE_HEADER_LENGTH
-        self.data_items = []
+        self.len = 0
+        self._data_items = []
+
+    @property
+    def data_items(self):
+        return self._data_items
+
+    def append_data_item(self, item):
+        self._data_items.append(item)
+        self.len += item.len
 
     def from_buffer(self, buffer):
         if len(buffer) < MESSAGE_HEADER_LENGTH:
@@ -128,7 +144,7 @@ class MessagePdu:
                                   int(self.type),
                                   self.len
                                   ))
-        for item in self.data_items:
+        for item in self._data_items:
             packet += item.to_buffer()
 
         return packet

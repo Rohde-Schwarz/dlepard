@@ -132,8 +132,8 @@ class DLEPSession:
                                                   new_dib.ipv4_address))
 
             response_msg = MessagePdu(MessageType.DESTINATION_UP_RESPONSE_MESSAGE)
-            response_msg.data_items.append(MacAddress(new_dib.mac_address))
-            response_msg.data_items.append(Status(StatusCode.SUCCESS, "RX-OK"))
+            response_msg.append_data_item(MacAddress(new_dib.mac_address))
+            response_msg.append_data_item(Status(StatusCode.SUCCESS, "RX-OK"))
             self.tcp_proxy.send_msg(response_msg.to_buffer())
 
             self.print_destination_information_base(peer=True)
@@ -155,8 +155,8 @@ class DLEPSession:
                 self.destination_information_base.remove(x)
 
             response_msg = MessagePdu(MessageType.DESTINATION_DOWN_RESPONSE_MESSAGE)
-            response_msg.data_items.append(MacAddress(dib_to_remove.mac_address))
-            response_msg.data_items.append(Status(StatusCode.SUCCESS, "RX-OK"))
+            response_msg.append_data_item(MacAddress(dib_to_remove.mac_address))
+            response_msg.append_data_item(Status(StatusCode.SUCCESS, "RX-OK"))
             self.tcp_proxy.send_msg(response_msg.to_buffer())
 
             self.print_destination_information_base(peer=True)
@@ -206,7 +206,7 @@ class DLEPSession:
         log.debug("EXTRACTED signal PDU type {} len {}".format(pdu.type,
                                                                pdu.len))
 
-        pdu.data_items = self.extract_all_dataitems(message[SIGNAL_HEADER_SIZE:])
+        pdu._data_items = self.extract_all_dataitems(message[SIGNAL_HEADER_SIZE:])
 
         if self.state == DlepSessionState.PEER_DISCOVERY_STATE:
             if pdu.type == SignalType.PEER_OFFER_SIGNAL:
@@ -220,7 +220,6 @@ class DLEPSession:
         Handles the incoming messages according to the DLEP state machine
         Args:
             message: The message received over TCP
-            addr: Address from the transmitter
         """
         self.reset_heartbeat_watchdog()
 
@@ -230,7 +229,7 @@ class DLEPSession:
         log.debug("EXTRACTED message PDU type {} len {}".format(pdu.type,
                                                                 pdu.len))
 
-        pdu.data_items = self.extract_all_dataitems(message[MESSAGE_HEADER_LENGTH:])
+        pdu._data_items = self.extract_all_dataitems(message[MESSAGE_HEADER_LENGTH:])
 
         if self.state == DlepSessionState.SESSION_INITIALISATION_STATE:
             self.__process_session_init_tcp_message(pdu)
@@ -343,8 +342,8 @@ class DLEPSession:
         log.debug("started tcp Proxy")
 
         session_init_message = MessagePdu(MessageType.SESSION_INITIALISATION_MESSAGE)
-        session_init_message.data_items.append(HeartbeatInterval(self.own_heartbeat_interval))
-        session_init_message.data_items.append(PeerType("servus"))
+        session_init_message.append_data_item(HeartbeatInterval(self.own_heartbeat_interval))
+        session_init_message.append_data_item(PeerType("servus"))
 
         log.debug("sending session initialisation message")
         self.tcp_proxy.send_msg(session_init_message.to_buffer())
@@ -361,8 +360,8 @@ class DLEPSession:
         self.reset_heartbeat_watchdog()
 
         session_termination_message = MessagePdu(MessageType.SESSION_TERMINATION_MESSAGE)
-        session_termination_message.data_items.append(Status(StatusCode.TIMED_OUT,
-                                                             "missed Heartbeats!"))
+        session_termination_message.append_data_item(Status(StatusCode.TIMED_OUT,
+                                                            "missed Heartbeats!"))
 
         log.debug("sending Termination Message")
         self.tcp_proxy.send_msg(session_termination_message.to_buffer())
@@ -499,10 +498,10 @@ class DLEPSession:
                       "type {} and len {}".format(item_type_current,
                                                   length_current_item))
 
-            length_current_item += 4  # we need the type and length fields too
+            length_current_item += 4  # we need the type and len fields too
 
             if (analyzed_len + length_current_item) > total_len:
-                log.warning("RX: length of Data Item exceeded total buffer length")
+                log.warning("RX: len of Data Item exceeded total buffer len")
                 return all_data_items
 
             item = None
