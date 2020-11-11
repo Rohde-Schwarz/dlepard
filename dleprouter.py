@@ -10,7 +10,7 @@ import logging
 
 from dlepsession import DLEPSession
 
-log = logging.getLogger("myLog")
+log = logging.getLogger("DLEPard")
 log.addHandler(logging.StreamHandler(sys.stdout))
 log.setLevel(logging.DEBUG)
 

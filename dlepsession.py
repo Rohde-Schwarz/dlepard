@@ -1,11 +1,18 @@
 import asyncio
+from enum import IntEnum
 import json
+import logging
+from typing import Optional
 
-from dataitems import *
 from heartbeattimer import HeartbeatTimer
-from signals_messages import *
+from rsb_dlep.data_items import DataItemType, StatusCode
+import rsb_dlep.data_items.core as di
+from rsb_dlep.message import MessageType, MessagePdu
+from rsb_dlep.signal import SignalType, SignalPdu
 from tcpproxy import TCPProxy
 from udpproxy import UDPProxy
+
+log = logging.getLogger("DLEPard")
 
 
 class DlepSessionState(IntEnum):
@@ -13,6 +20,7 @@ class DlepSessionState(IntEnum):
     class DlepSessionState represents all the states of the DLEP Session as
     defined in RFC8175
     """
+
     PEER_DISCOVERY_STATE = 0
     SESSION_INITIALISATION_STATE = 1
     IN_SESSION_STATE = 2
@@ -24,6 +32,7 @@ class DestinationInformationBase:
     """
     Encapsulates all information related to the destinations
     """
+
     def __init__(self):
         self.mac_address = None
         self.ipv4_address = None
@@ -41,6 +50,7 @@ class RecentEvent:
     destination-up destination-down messages. This information has to be
     forwarded by the rest-api.
     """
+
     TYPE_DEST_DOWN = "dest-down"
     TYPE_DEST_UP = "dest-up"
 
@@ -107,8 +117,9 @@ class DLEPSession:
             for item in pdu.data_items:
                 if item.type == DataItemType.STATUS:
                     if item.status_code == StatusCode.SUCCESS:
-                        self.process_data_items(pdu.data_items,
-                                                self.peer_information_base)
+                        self.process_data_items(
+                            pdu.data_items, self.peer_information_base
+                        )
                         self.print_destination_information_base(peer=True)
                         self.enter_in_session_state()
 
@@ -127,13 +138,15 @@ class DLEPSession:
             new_dib = DestinationInformationBase()
             self.process_data_items(pdu.data_items, new_dib)
             self.destination_information_base.append(new_dib)
-            self.recent_events.append(RecentEvent(RecentEvent.TYPE_DEST_UP,
-                                                  new_dib.mac_address,
-                                                  new_dib.ipv4_address))
+            self.recent_events.append(
+                RecentEvent(
+                    RecentEvent.TYPE_DEST_UP, new_dib.mac_address, new_dib.ipv4_address
+                )
+            )
 
             response_msg = MessagePdu(MessageType.DESTINATION_UP_RESPONSE_MESSAGE)
-            response_msg.append_data_item(MacAddress(new_dib.mac_address))
-            response_msg.append_data_item(Status(StatusCode.SUCCESS, "RX-OK"))
+            response_msg.append_data_item(di.MacAddress(new_dib.mac_address))
+            response_msg.append_data_item(di.Status(StatusCode.SUCCESS, "RX-OK"))
             self.tcp_proxy.send_msg(response_msg.to_buffer())
 
             self.print_destination_information_base(peer=True)
@@ -142,21 +155,25 @@ class DLEPSession:
             log.debug("--> got destination down message")
             dib_to_remove = DestinationInformationBase()
             self.process_data_items(pdu.data_items, dib_to_remove)
-            self.recent_events.append(RecentEvent(RecentEvent.TYPE_DEST_DOWN,
-                                                  dib_to_remove.mac_address,
-                                                  dib_to_remove.ipv4_address))
+            self.recent_events.append(
+                RecentEvent(
+                    RecentEvent.TYPE_DEST_DOWN,
+                    dib_to_remove.mac_address,
+                    dib_to_remove.ipv4_address,
+                )
+            )
 
             list_filter = filter(
                 lambda x: dib_to_remove.mac_address.lower() == x.mac_address.lower(),
-                self.destination_information_base
+                self.destination_information_base,
             )
             entries_to_remove = list(list_filter)
             for x in entries_to_remove:
                 self.destination_information_base.remove(x)
 
             response_msg = MessagePdu(MessageType.DESTINATION_DOWN_RESPONSE_MESSAGE)
-            response_msg.append_data_item(MacAddress(dib_to_remove.mac_address))
-            response_msg.append_data_item(Status(StatusCode.SUCCESS, "RX-OK"))
+            response_msg.append_data_item(di.MacAddress(dib_to_remove.mac_address))
+            response_msg.append_data_item(di.Status(StatusCode.SUCCESS, "RX-OK"))
             self.tcp_proxy.send_msg(response_msg.to_buffer())
 
             self.print_destination_information_base(peer=True)
@@ -201,17 +218,12 @@ class DLEPSession:
             addr: Address from the transmitter
         """
         log.debug("received something with len {} from {}".format(len(message), addr))
-        pdu = SignalPdu()
-        pdu.from_buffer(message[:SIGNAL_HEADER_SIZE])
-        log.debug("EXTRACTED signal PDU type {} len {}".format(pdu.type,
-                                                               pdu.len))
-
-        pdu._data_items = self.extract_all_dataitems(message[SIGNAL_HEADER_SIZE:])
+        pdu = SignalPdu.from_buffer(message)
+        log.debug("EXTRACTED signal PDU type {} len {}".format(pdu.type, pdu.len))
 
         if self.state == DlepSessionState.PEER_DISCOVERY_STATE:
             if pdu.type == SignalType.PEER_OFFER_SIGNAL:
                 self.process_data_items(pdu.data_items, self.peer_information_base)
-
                 asyncio.ensure_future(self.enter_session_initialisation_state())
 
     def on_tcp_receive(self, message):
@@ -224,12 +236,8 @@ class DLEPSession:
         self.reset_heartbeat_watchdog()
 
         log.debug("received something with len {}".format(len(message)))
-        pdu = MessagePdu()
-        pdu.from_buffer(message[:MESSAGE_HEADER_LENGTH])
-        log.debug("EXTRACTED message PDU type {} len {}".format(pdu.type,
-                                                                pdu.len))
-
-        pdu._data_items = self.extract_all_dataitems(message[MESSAGE_HEADER_LENGTH:])
+        pdu = MessagePdu.from_buffer(message)
+        log.debug("EXTRACTED message PDU type {} len {}".format(pdu.type, pdu.len))
 
         if self.state == DlepSessionState.SESSION_INITIALISATION_STATE:
             self.__process_session_init_tcp_message(pdu)
@@ -243,8 +251,7 @@ class DLEPSession:
     def start_heartbeat_timer(self):
         # TODO: This should be peer_heartbeat
         timeout = (self.own_heartbeat_interval / 1000) + 2
-        self.heartbeat_timer = HeartbeatTimer(timeout,
-                                              self.heartbeat_callback)
+        self.heartbeat_timer = HeartbeatTimer(timeout, self.heartbeat_callback)
         self.heartbeat_timer.start()
 
     def restart_heartbeat_timer(self):
@@ -264,8 +271,7 @@ class DLEPSession:
 
     def start_watchdog_timer(self):
         timeout = (self.own_heartbeat_interval / 1000) + 2
-        self.heartbeat_watchdog = HeartbeatTimer(timeout,
-                                                 self.watchdog_callback)
+        self.heartbeat_watchdog = HeartbeatTimer(timeout, self.watchdog_callback)
         self.heartbeat_watchdog.start()
 
     def reset_heartbeat_watchdog(self):
@@ -279,19 +285,23 @@ class DLEPSession:
         Indicates that a heartbeat from the peer has been missed
         """
         self.missed_heartbeats += 1
-        log.critical("!!! missed a heartbeat "
-                     "nr {} from peer !!!".format(self.missed_heartbeats))
+        log.critical(
+            "!!! missed a heartbeat "
+            "nr {} from peer !!!".format(self.missed_heartbeats)
+        )
 
-        if (self.state == DlepSessionState.IN_SESSION_STATE) \
-                and (self.missed_heartbeats > 3):
+        if (self.state == DlepSessionState.IN_SESSION_STATE) and (
+            self.missed_heartbeats > 3
+        ):
             self.enter_session_termination_state()
-        if (self.state == DlepSessionState.SESSION_TERMINATION_STATE) \
-                and (self.missed_heartbeats > 4):
+        if (self.state == DlepSessionState.SESSION_TERMINATION_STATE) and (
+            self.missed_heartbeats > 4
+        ):
             self.session_reset()
 
-    def process_data_items(self,
-                           item_array,
-                           information_base: DestinationInformationBase):
+    def process_data_items(
+        self, item_array, information_base: DestinationInformationBase
+    ):
         """
         Applies the received Data Items to the according fields of the
         destination information base
@@ -319,7 +329,7 @@ class DLEPSession:
             elif item.type == DataItemType.LATENCY:
                 information_base.latency = item.latency
             elif item.type == DataItemType.MAC_ADDRESS:
-                information_base.mac_address = item.adr
+                information_base.mac_address = item.addr
             elif item.type == DataItemType.IPV4_ADDRESS:
                 information_base.ipv4_address = item.ipaddr
             elif item.type == DataItemType.LOSS_RATE:
@@ -332,18 +342,22 @@ class DLEPSession:
         # TODO: This should NOT be UDP
         # TODO: Don't use the multicast address
         # - used because arp not implemented yet
-        self.tcp_proxy = TCPProxy(self.peer_information_base.ipv4_address,
-                                  self.peer_tcp_port,
-                                  self.interface,
-                                  self.on_tcp_receive,
-                                  self.loop)
+        self.tcp_proxy = TCPProxy(
+            self.peer_information_base.ipv4_address,
+            self.peer_tcp_port,
+            self.interface,
+            self.on_tcp_receive,
+            self.loop,
+        )
 
         await self.tcp_proxy.start()
         log.debug("started tcp Proxy")
 
         session_init_message = MessagePdu(MessageType.SESSION_INITIALISATION_MESSAGE)
-        session_init_message.append_data_item(HeartbeatInterval(self.own_heartbeat_interval))
-        session_init_message.append_data_item(PeerType("servus"))
+        session_init_message.append_data_item(
+            di.HeartbeatInterval(self.own_heartbeat_interval)
+        )
+        session_init_message.append_data_item(di.PeerType("servus"))
 
         log.debug("sending session initialisation message")
         self.tcp_proxy.send_msg(session_init_message.to_buffer())
@@ -359,9 +373,12 @@ class DLEPSession:
         log.debug("entering SESSION_TERMINATION_STATE")
         self.reset_heartbeat_watchdog()
 
-        session_termination_message = MessagePdu(MessageType.SESSION_TERMINATION_MESSAGE)
-        session_termination_message.append_data_item(Status(StatusCode.TIMED_OUT,
-                                                            "missed Heartbeats!"))
+        session_termination_message = MessagePdu(
+            MessageType.SESSION_TERMINATION_MESSAGE
+        )
+        session_termination_message.append_data_item(
+            di.Status(StatusCode.TIMED_OUT, "missed Heartbeats!")
+        )
 
         log.debug("sending Termination Message")
         self.tcp_proxy.send_msg(session_termination_message.to_buffer())
@@ -385,14 +402,32 @@ class DLEPSession:
             log.info("=======================================================")
             log.info("=============== Peer Information ======================")
             log.info("=======================================================")
-            log.info("IPv4 Address     - {}".format(self.peer_information_base.ipv4_address))
+            log.info(
+                "IPv4 Address     - {}".format(self.peer_information_base.ipv4_address)
+            )
             log.info("Port             - {}".format(self.peer_tcp_port))
             log.info("Interface        - {}".format(self.interface))
             log.info("Heartbeat        - {}".format(self.peer_heartbeat))
-            log.info("Max. data rate RX - {}".format(self.peer_information_base.max_datarate_rx))
-            log.info("Max. data rate TX - {}".format(self.peer_information_base.max_datarate_tx))
-            log.info("Cur. data rate RX - {}".format(self.peer_information_base.curr_datarate_rx))
-            log.info("Cur. data rate TX - {}".format(self.peer_information_base.curr_datarate_tx))
+            log.info(
+                "Max. data rate RX - {}".format(
+                    self.peer_information_base.max_datarate_rx
+                )
+            )
+            log.info(
+                "Max. data rate TX - {}".format(
+                    self.peer_information_base.max_datarate_tx
+                )
+            )
+            log.info(
+                "Cur. data rate RX - {}".format(
+                    self.peer_information_base.curr_datarate_rx
+                )
+            )
+            log.info(
+                "Cur. data rate TX - {}".format(
+                    self.peer_information_base.curr_datarate_tx
+                )
+            )
             log.info("Latency          - {}".format(self.peer_information_base.latency))
 
         log.info("===========================================================")
@@ -414,39 +449,39 @@ class DLEPSession:
 
     def get_information_json_string(self):
         json_data = dict()
-        json_data['events'] = []
-        json_data['destinations'] = []
-        json_data['peer'] = {
-            'tcp_port': self.peer_tcp_port,
-            'interface': self.interface,
-            'heartbeat_interval': self.peer_heartbeat,
-            'peer_type': self.peer_tcp_port,
-            'ipv4-address': self.peer_information_base.ipv4_address,
-            'max_datarate_rx': self.peer_information_base.max_datarate_rx,
-            'max_datarate_tx': self.peer_information_base.max_datarate_tx,
-            'cur_datarate_rx': self.peer_information_base.curr_datarate_rx,
-            'cur_datarate_tx': self.peer_information_base.curr_datarate_tx,
-            'latency': self.peer_information_base.latency
+        json_data["events"] = []
+        json_data["destinations"] = []
+        json_data["peer"] = {
+            "tcp_port": self.peer_tcp_port,
+            "interface": self.interface,
+            "heartbeat_interval": self.peer_heartbeat,
+            "peer_type": self.peer_tcp_port,
+            "ipv4-address": self.peer_information_base.ipv4_address,
+            "max_datarate_rx": self.peer_information_base.max_datarate_rx,
+            "max_datarate_tx": self.peer_information_base.max_datarate_tx,
+            "cur_datarate_rx": self.peer_information_base.curr_datarate_rx,
+            "cur_datarate_tx": self.peer_information_base.curr_datarate_tx,
+            "latency": self.peer_information_base.latency,
         }
         for dest in self.destination_information_base:
             destination_data = {
-                'mac-address': dest.mac_address,
-                'ipv4-address': dest.ipv4_address,
-                'max_datarate_rx': dest.max_datarate_rx,
-                'max_datarate_tx': dest.max_datarate_tx,
-                'cur_datarate_rx': dest.curr_datarate_rx,
-                'cur_datarate_tx': dest.curr_datarate_tx,
-                'loss': dest.loss
+                "mac-address": dest.mac_address,
+                "ipv4-address": dest.ipv4_address,
+                "max_datarate_rx": dest.max_datarate_rx,
+                "max_datarate_tx": dest.max_datarate_tx,
+                "cur_datarate_rx": dest.curr_datarate_rx,
+                "cur_datarate_tx": dest.curr_datarate_tx,
+                "loss": dest.loss,
             }
-            json_data['destinations'].append(destination_data)
+            json_data["destinations"].append(destination_data)
 
         for event in self.recent_events:
             ev_data = {
-                'event-type': event.type,
-                'ipv4-addr': event.ipv4_addr,
-                'mac-addr': event.node_mac_addr
+                "event-type": event.type,
+                "ipv4-addr": event.ipv4_addr,
+                "mac-addr": event.node_mac_addr,
             }
-            json_data['events'].append(ev_data)
+            json_data["events"].append(ev_data)
 
         self.recent_events.clear()
         json_str = json.dumps(json_data)
@@ -470,75 +505,3 @@ class DLEPSession:
 
             # Wait 60 seconds to send next Peer Discovery signal
             await asyncio.sleep(10)
-
-    @staticmethod
-    def extract_itemtype_and_length(msgbuf):
-        dataitem_type = DataItemType(int.from_bytes(msgbuf[0:2], 'big'))
-        length = int.from_bytes(msgbuf[2:4], 'big')
-
-        return dataitem_type, length
-
-    def extract_all_dataitems(self, message):
-        """
-        Extracts all the Data Items from the received tcp message
-        Args:
-            message: message buffer received over tcp
-
-        Returns: list with all data items extracted from the given buffer
-        """
-        total_len = len(message)
-        analyzed_len = 0
-        all_data_items = []
-
-        while analyzed_len < total_len:
-            item_type_current, length_current_item = self.extract_itemtype_and_length(
-                message[analyzed_len:analyzed_len+16])
-
-            log.debug("extracting data item "
-                      "type {} and len {}".format(item_type_current,
-                                                  length_current_item))
-
-            length_current_item += 4  # we need the type and len fields too
-
-            if (analyzed_len + length_current_item) > total_len:
-                log.warning("RX: len of Data Item exceeded total buffer len")
-                return all_data_items
-
-            item = None
-
-            if item_type_current == DataItemType.IPV4_CONNECTION_POINT:
-                item = DataItemIp4ConnPt()
-            elif item_type_current == DataItemType.PEER_TYPE:
-                item = PeerType()
-            elif item_type_current == DataItemType.HEARTBEAT_INTERVAL:
-                item = HeartbeatInterval()
-            elif item_type_current == DataItemType.STATUS:
-                item = Status()
-            elif item_type_current == DataItemType.MAXIMUM_DATA_RATE_RX:
-                item = MaximumDatarateReceive()
-            elif item_type_current == DataItemType.MAXIMUM_DATA_RATE_TX:
-                item = MaximumDatarateTransmit()
-            elif item_type_current == DataItemType.CURRENT_DATA_RATE_RX:
-                item = CurrentDatarateReceive()
-            elif item_type_current == DataItemType.CURRENT_DATA_RATE_TX:
-                item = CurrentDatarateTransmit()
-            elif item_type_current == DataItemType.LATENCY:
-                item = Latency()
-            elif item_type_current == DataItemType.MAC_ADDRESS:
-                item = MacAddress()
-            elif item_type_current == DataItemType.IPV4_ADDRESS:
-                item = IPv4Address()
-            elif item_type_current == DataItemType.LOSS_RATE:
-                item = LossRate()
-            else:
-                log.warning("unknown data item type")
-
-            if item is not None:
-                length = analyzed_len + length_current_item
-                item.from_buffer(message[analyzed_len: length])
-                all_data_items.append(item)
-                log.debug("found new data item type {}".format(item.type))
-
-            analyzed_len += length_current_item
-
-        return all_data_items
