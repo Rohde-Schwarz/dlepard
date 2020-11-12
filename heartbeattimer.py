@@ -7,6 +7,7 @@ class HeartbeatTimer:
     """
     Simple Asynchronous Timer that expires after a given time
     """
+
     def __init__(self, timeout, callback):
         """ Initialize the timer
         Args:

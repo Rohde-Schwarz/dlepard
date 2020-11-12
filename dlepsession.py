@@ -61,7 +61,13 @@ class RecentEvent:
 
 
 class DLEPSession:
-    def __init__(self, conf, interface, loop=None, update_callback=None):
+
+    DISCOVERY_PORT = 854
+    """Default discovery port."""
+    HEARTBEAT_IVAL = 60000
+    """Default heartbeat interval."""
+
+    def __init__(self, conf, addr, loop=None, update_callback=None):
         """
         Create a new instance of a DLEP session for a single interface
         Args:
@@ -71,30 +77,22 @@ class DLEPSession:
             update_callback: this method is called for signalling major updates
                              of the internal database
         """
-        self.dlep_mcast_ipv4addr = conf["dlep"]["mcast-ip4addr"]
-        self.dlep_udp_port = conf["dlep"]["udp-port"]
-
         self.conf = conf
+
+        self.dlep_mcast_ipv4addr = conf["discovery"].get("ip4addr", "")
+        self.dlep_udp_port = conf["discovery"].get("port", self.DISCOVERY_PORT)
 
         self.loop = loop
         self.state = DlepSessionState.PEER_DISCOVERY_STATE
-        self.interface = interface
-        self.udp_proxy = UDPProxy(self.dlep_mcast_ipv4addr,
-                                  self.dlep_udp_port,
-                                  interface,
-                                  self.on_udp_receive,
-                                  loop,
-                                  multicast=True)
-        self.tcp_proxy = None
+        self.addr = addr
 
         self.running = False
         self.heartbeat_timer = None
         self.heartbeat_watchdog = None
         self.missed_heartbeats = 0
-        if "heartbeat-interval-ms" in conf["dlep"]:
-            self.own_heartbeat_interval = conf["dlep"]["heartbeat-interval-ms"]
-        else:
-            self.own_heartbeat_interval = 60000  # See RFC 8175
+        self.own_heartbeat_interval = conf["discovery"].get(
+            "heartbeat-interval-ms", self.HEARTBEAT_IVAL
+        )
 
         self.peer_tcp_port = None
         self.peer_type = ""
@@ -105,6 +103,41 @@ class DLEPSession:
         self.recent_events = []
 
         self.update_callback = update_callback
+
+        self.udp_proxy = self.__init_udp()
+        if self.udp_proxy is None:
+            log.info("Discovery disabled")
+        self.tcp_proxy = self.__init_tcp()
+
+    def __init_udp(self) -> Optional[UDPProxy]:
+        if not self.dlep_mcast_ipv4addr:
+            return None
+        if self.conf["discovery"].get("disabled", False):
+            return None
+        return UDPProxy(
+            self.dlep_mcast_ipv4addr,
+            self.dlep_udp_port,
+            self.addr,
+            self.on_udp_receive,
+            self.loop,
+            multicast=True,
+        )
+
+    def __init_tcp(self) -> Optional[TCPProxy]:
+        if "tcp" not in self.conf or self.addr not in self.conf["tcp"]:
+            return None
+        if self.udp_proxy is not None:
+            return None
+        tcp_conf = self.conf["tcp"][self.addr]
+        self.peer_information_base.ipv4_address = tcp_conf["ipv4addr"]
+        self.peer_tcp_port = tcp_conf["port"]
+        return TCPProxy(
+            self.peer_information_base.ipv4_address,
+            self.peer_tcp_port,
+            self.addr,
+            self.on_tcp_receive,
+            self.loop,
+        )
 
     def __process_session_init_tcp_message(self, pdu):
         """
@@ -339,19 +372,15 @@ class DLEPSession:
         log.debug("entering SESSION_INITIALISATION_STATE...")
         self.state = DlepSessionState.SESSION_INITIALISATION_STATE
 
-        # TODO: This should NOT be UDP
-        # TODO: Don't use the multicast address
-        # - used because arp not implemented yet
-        self.tcp_proxy = TCPProxy(
-            self.peer_information_base.ipv4_address,
-            self.peer_tcp_port,
-            self.interface,
-            self.on_tcp_receive,
-            self.loop,
-        )
-
-        await self.tcp_proxy.start()
-        log.debug("started tcp Proxy")
+        if self.tcp_proxy is None:
+            self.tcp_proxy = TCPProxy(
+                self.peer_information_base.ipv4_address,
+                self.peer_tcp_port,
+                self.addr,
+                self.on_tcp_receive,
+                self.loop,
+            )
+            await self.tcp_proxy.start()
 
         session_init_message = MessagePdu(MessageType.SESSION_INITIALISATION_MESSAGE)
         session_init_message.append_data_item(
@@ -402,12 +431,12 @@ class DLEPSession:
             log.info("=======================================================")
             log.info("=============== Peer Information ======================")
             log.info("=======================================================")
+            log.info("Local Address     - {}".format(self.addr))
             log.info(
-                "IPv4 Address     - {}".format(self.peer_information_base.ipv4_address)
+                "Remote Address    - {}".format(self.peer_information_base.ipv4_address)
             )
-            log.info("Port             - {}".format(self.peer_tcp_port))
-            log.info("Interface        - {}".format(self.interface))
-            log.info("Heartbeat        - {}".format(self.peer_heartbeat))
+            log.info("Port              - {}".format(self.peer_tcp_port))
+            log.info("Heartbeat         - {}".format(self.peer_heartbeat))
             log.info(
                 "Max. data rate RX - {}".format(
                     self.peer_information_base.max_datarate_rx
@@ -435,13 +464,13 @@ class DLEPSession:
         log.info("===========================================================")
         for dest in self.destination_information_base:
             log.info("--------------------------------------------------------")
-            log.info("MAC Address      - {}".format(dest.mac_address))
-            log.info("IPv4 Address     - {}".format(dest.ipv4_address))
+            log.info("MAC Address       - {}".format(dest.mac_address))
+            log.info("IPv4 Address      - {}".format(dest.ipv4_address))
             log.info("Max. data rate RX - {}".format(dest.max_datarate_rx))
             log.info("Max. data rate TX - {}".format(dest.max_datarate_tx))
             log.info("Cur. data rate RX - {}".format(dest.curr_datarate_rx))
             log.info("Cur. data rate TX - {}".format(dest.curr_datarate_tx))
-            log.info("Loss Rate        - {}".format(dest.loss))
+            log.info("Loss Rate         - {}".format(dest.loss))
 
         # TODO: Move to TCP callback
         if self.update_callback is not None:
@@ -453,7 +482,7 @@ class DLEPSession:
         json_data["destinations"] = []
         json_data["peer"] = {
             "tcp_port": self.peer_tcp_port,
-            "interface": self.interface,
+            "interface": "(depricated)",
             "heartbeat_interval": self.peer_heartbeat,
             "peer_type": self.peer_tcp_port,
             "ipv4-address": self.peer_information_base.ipv4_address,
@@ -488,20 +517,25 @@ class DLEPSession:
         return json_str
 
     async def start(self):
-        await self.udp_proxy.start()
+        if self.udp_proxy is not None:
+            await self.udp_proxy.start()
+        elif self.tcp_proxy is not None:
+            await self.tcp_proxy.start()
         self.running = True
         log.debug("dlep-router is running")
-        asyncio.ensure_future(self.execute())
+        if self.udp_proxy is not None:
+            asyncio.ensure_future(self.discovery())
+        elif self.tcp_proxy is not None:
+            asyncio.ensure_future(self.enter_session_initialisation_state())
 
-    async def execute(self):
-        while self.running:
-            if self.state == DlepSessionState.PEER_DISCOVERY_STATE:
-                # sending the peer discovery messages
-                discovery_pdu = SignalPdu(SignalType.PEER_DISCOVERY_SIGNAL)
-                pdu = discovery_pdu.to_buffer()
+    async def discovery(self):
+        while self.running and self.state == DlepSessionState.PEER_DISCOVERY_STATE:
+            # sending the peer discovery messages
+            discovery_pdu = SignalPdu(SignalType.PEER_DISCOVERY_SIGNAL)
+            pdu = discovery_pdu.to_buffer()
 
-                log.info("sending discovery signal of len {}".format(len(pdu)))
-                self.udp_proxy.send_msg(pdu)
+            log.info("sending discovery signal of len {}".format(len(pdu)))
+            self.udp_proxy.send_msg(pdu)
 
             # Wait 60 seconds to send next Peer Discovery signal
             await asyncio.sleep(10)

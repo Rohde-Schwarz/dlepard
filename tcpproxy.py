@@ -1,8 +1,11 @@
 import asyncio
+import logging
+
+log = logging.getLogger("DLEPard")
 
 
 class TCPProxy(asyncio.Protocol):
-    def __init__(self, ipv4adr, port, interface, receive_handler, loop=None):
+    def __init__(self, ipv4adr, port, addr, receive_handler, loop=None):
         if loop is None:
             self.loop = asyncio.get_event_loop()
         else:
@@ -11,7 +14,7 @@ class TCPProxy(asyncio.Protocol):
         self.running = False
         self.ip_addr = ipv4adr
         self.port = port
-        self.interface = interface
+        self.addr = addr
         self.transport = None  # type: asyncio.Transport
         self.receive_handler = receive_handler
 
@@ -25,5 +28,8 @@ class TCPProxy(asyncio.Protocol):
         self.transport.write(message)
 
     async def start(self):
-        coro = self.loop.create_connection(lambda: self, host=self.ip_addr, port=self.port)
+        coro = self.loop.create_connection(
+            lambda: self, host=self.ip_addr, port=self.port, local_addr=(self.addr, 0)
+        )
         await asyncio.wait_for(coro, 5)
+        log.debug("Started TCP proxy")
