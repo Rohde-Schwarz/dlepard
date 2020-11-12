@@ -55,6 +55,9 @@ class StatusCode(IntEnum):
 
 
 class DataItem:
+
+    HEADER_SIZE = 4
+
     def __init__(self, item_type, item_len):
         self.type = item_type
         self.len = item_len

@@ -4,6 +4,8 @@ from enum import IntEnum
 import logging
 import struct
 
+from dataitems import DataItem
+
 log = logging.getLogger("myLog")
 
 
@@ -75,7 +77,7 @@ class SignalPdu:
 
     def append_data_item(self, item):
         self._data_items.append(item)
-        self.len += item.len
+        self.len += item.len + DataItem.HEADER_SIZE
 
     def from_buffer(self, buffer):
         if len(buffer) < SIGNAL_HEADER_SIZE:
@@ -126,7 +128,7 @@ class MessagePdu:
 
     def append_data_item(self, item):
         self._data_items.append(item)
-        self.len += item.len
+        self.len += item.len + DataItem.HEADER_SIZE
 
     def from_buffer(self, buffer):
         if len(buffer) < MESSAGE_HEADER_LENGTH:
