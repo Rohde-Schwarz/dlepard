@@ -90,12 +90,38 @@ The payload is formatted in JSON and structured as follows:
 
 ## DLEP Information Viewer
 
-The *DLEP Information Viewer* is a webserver that provides a simple web GUI to
-view the current database from DLEP-Router. The Webserver provides a REST API
+The *DLEP Information Viewer* is a web server that provides a simple web GUI to
+view the current database from DLEP-Router. The web server provides a REST API
 that the DLEP plugin can use to publish its information.
 
 The web GUI can be and accessed via <http://localhost:8080/> and should work
 with any web browser.
+
+## Changelog
+
+### Unreleased
+
+- Use explicit IP addresses instead of network interface names
+  + *UDPProxy* works on Windows 10
+- Discovery mechanism can be disabled
+- Let the operating system choose the source port for signals and messages
+  + No need for *sudo* any more
+
+### 1.0.0 (2020-11-12)
+
+- Initial stable version
+- Supports UDP discovery and TCP session messages
+- Supports the following Data Items from RFC 8175:
+  + Status
+  + IPv4 Connection Point
+  + Heartbeat Interval
+  + MAC Address
+  + IPv4 Address
+  + Maximum Data Rate (Receive)
+  + Maximum Data Rate (Transmit)
+  + Current Data Rate (Receive)
+  + Current Data Rate (Transmit)
+  + Latency
 
 ## Contribution
 
@@ -109,3 +135,4 @@ with any web browser.
 Copyright (c) Rohde & Schwarz GmbH. & Co. KG. All rights reserved.
 
 The software is licensed under MIT [License](./LICENSE).
+
