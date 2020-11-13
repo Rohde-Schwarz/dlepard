@@ -79,7 +79,7 @@ class DLEPSession:
         """
         self.conf = conf
 
-        self.dlep_mcast_ipv4addr = conf["discovery"].get("ip4addr", "")
+        self.dlep_mcast_ipv4addr = conf["discovery"].get("ipv4addr", "")
         self.dlep_udp_port = conf["discovery"].get("port", self.DISCOVERY_PORT)
 
         self.loop = loop

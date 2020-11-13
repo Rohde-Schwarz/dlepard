@@ -2,7 +2,7 @@
   "local-ipv4addr" : ["198.18.10.1", "198.18.20.1"],
 
   "discovery": {
-    "ip4addr" : "224.0.0.117",
+    "ipv4addr" : "224.0.0.117",
     "disabled" : true
   },
 
