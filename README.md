@@ -18,13 +18,21 @@ The required command line arguments are:
 The configuration file (e.g. `dlep-router-conf.json`) contains the following
 information:
 
-- `dlep`
-  - `mcast-ip4addr`: The service's multicast IPv4 address.
-    According to *RFC 8175* e.g.: `224.0.0.117`
-  - `udp-port`: The service's port number. According to *RFC 8175* e.g.: `854`
-- `router`
-  - `interfaces`: A list of interfaces that should be handled as DLEP interfaces.
-    This is a subset of all interfaces available at the router.
+- `local-ipv4addr`: List of IP addresses to bind to.  Each address represents a
+  router instance.
+- `discovery`
+  - `ipv4addr`: The service's multicast IPv4 address.
+    According to *RFC 8175*, this should be `224.0.0.117`.
+  - `port` (optional): The service's port number.  
+    Default is `854` (see *RFC 8175*).
+  - `disabled` (optional): Whether to deactivate the discovery mechanism and
+    start with the session initialization.  
+    Default is `false`.
+- `tcp` (optional): A dictionary containing TCP connection configurations.
+  This is only necessary if discovery is disabled.
+  - *Key*: One of the addresses from `local-ipv4addr`.
+    - `ipv4addr`: The modem's IP address.
+    - `port`: The service's TCP port number.
 - `rest-if`
   - `broadcast-url`: The URLs to all REST APIs that require the DLEP information
     (e.g. the routing protocol or the *DLEP Info View*).
@@ -51,11 +59,10 @@ The payload is formatted in JSON and structured as follows:
 ```json
 {
     "peer": {
+        "ipv4-address": "192.1.1.102",
         "tcp_port": 32222,
-        "interface": "eth0",
         "heartbeat_interval": 10000,
         "peer_type": 32222,
-        "ipv4-address": "192.1.1.102",
         "max_datarate_rx": 40000,
         "max_datarate_tx": 40000,
         "cur_datarate_rx": 0,
