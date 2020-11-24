@@ -90,7 +90,7 @@ class DLEPSession:
         self.heartbeat_timer = None
         self.heartbeat_watchdog = None
         self.missed_heartbeats = 0
-        self.own_heartbeat_interval = conf["discovery"].get(
+        self.own_heartbeat_interval = conf.get(
             "heartbeat-interval-ms", self.HEARTBEAT_IVAL
         )
 
@@ -299,7 +299,6 @@ class DLEPSession:
         """
         log.debug("sending Heartbeat")
         heartbeat_pdu = MessagePdu(MessageType.HEARTBEAT_MESSAGE)
-        heartbeat_pdu.len = 0
         self.tcp_proxy.send_msg(heartbeat_pdu.to_buffer())
 
     def start_watchdog_timer(self):
