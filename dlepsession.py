@@ -485,6 +485,11 @@ class DLEPSession:
             log.info("--------------------------------------------------------")
             log.info("MAC Address       - {}".format(dest.mac_address))
             log.info("IPv4 Address      - {}".format(dest.ipv4_address))
+            log.info(
+                "IPv4 Subnets      - {}".format(
+                    [str(x) for x in dest.ipv4_attached_subnets]
+                )
+            )
             log.info("Max. data rate RX - {}".format(dest.max_datarate_rx))
             log.info("Max. data rate TX - {}".format(dest.max_datarate_tx))
             log.info("Cur. data rate RX - {}".format(dest.curr_datarate_rx))
