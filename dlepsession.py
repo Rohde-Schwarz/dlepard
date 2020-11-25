@@ -400,6 +400,13 @@ class DLEPSession:
         )
         session_init_message.append_data_item(di.PeerType("servus"))
 
+        tcp_conf = self.conf["tcp"][self.addr]
+        if "ipv4subnets" in tcp_conf:
+            for entry in tcp_conf["ipv4subnets"]:
+                session_init_message.append_data_item(
+                    di.IPv4AttachedSubnet(ipaddress.IPv4Network(entry))
+                )
+
         log.debug("sending session initialisation message")
         self.tcp_proxy.send_msg(session_init_message.to_buffer())
 
