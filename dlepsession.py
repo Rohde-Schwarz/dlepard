@@ -1,14 +1,17 @@
 import asyncio
 from enum import IntEnum
+import ipaddress
 import json
 import logging
-from typing import Optional
+from typing import Optional, List
 
-from heartbeattimer import HeartbeatTimer
-from rsb_dlep.data_items import DataItemType, StatusCode
+from rsb_dlep import data_items
+from rsb_dlep.data_items import DataItemType, StatusCode, core
 import rsb_dlep.data_items.core as di
 from rsb_dlep.message import MessageType, MessagePdu
 from rsb_dlep.signal import SignalType, SignalPdu
+
+from heartbeattimer import HeartbeatTimer
 from tcpproxy import TCPProxy
 from udpproxy import UDPProxy
 
@@ -35,7 +38,8 @@ class DestinationInformationBase:
 
     def __init__(self):
         self.mac_address = None
-        self.ipv4_address = None
+        self.ipv4_address: Optional[ipaddress.IPv4Address] = None
+        self.ipv4_attached_subnets: List[ipaddress.IPv4Network] = []
         self.max_datarate_rx = 0
         self.max_datarate_tx = 0
         self.curr_datarate_rx = 0
@@ -54,10 +58,15 @@ class RecentEvent:
     TYPE_DEST_DOWN = "dest-down"
     TYPE_DEST_UP = "dest-up"
 
-    def __init__(self, ev_type, mac, ipv4):
+    def __init__(
+        self,
+        ev_type,
+        mac,
+        ipv4: ipaddress.IPv4Address,
+    ):
         self.type = ev_type
-        self.ipv4_addr = ipv4
         self.node_mac_addr = mac
+        self.ipv4_addr = ipv4
 
 
 class DLEPSession:
@@ -99,8 +108,8 @@ class DLEPSession:
         self.peer_heartbeat = 0
         self.peer_information_base = DestinationInformationBase()
 
-        self.destination_information_base = []
-        self.recent_events = []
+        self.destination_information_base: List[DestinationInformationBase] = []
+        self.recent_events: List[RecentEvent] = []
 
         self.update_callback = update_callback
 
@@ -132,7 +141,7 @@ class DLEPSession:
         self.peer_information_base.ipv4_address = tcp_conf["ipv4addr"]
         self.peer_tcp_port = tcp_conf["port"]
         return TCPProxy(
-            self.peer_information_base.ipv4_address,
+            str(self.peer_information_base.ipv4_address),
             self.peer_tcp_port,
             self.addr,
             self.on_tcp_receive,
@@ -173,7 +182,9 @@ class DLEPSession:
             self.destination_information_base.append(new_dib)
             self.recent_events.append(
                 RecentEvent(
-                    RecentEvent.TYPE_DEST_UP, new_dib.mac_address, new_dib.ipv4_address
+                    RecentEvent.TYPE_DEST_UP,
+                    new_dib.mac_address,
+                    new_dib.ipv4_address,
                 )
             )
 
@@ -364,6 +375,8 @@ class DLEPSession:
                 information_base.mac_address = item.addr
             elif item.type == DataItemType.IPV4_ADDRESS:
                 information_base.ipv4_address = item.ipaddr
+            elif isinstance(item, data_items.core.IPv4AttachedSubnet):
+                information_base.ipv4_attached_subnets.append(item.subnet)
             elif item.type == DataItemType.LOSS_RATE:
                 information_base.loss = item.loss
 
@@ -373,7 +386,7 @@ class DLEPSession:
 
         if self.tcp_proxy is None:
             self.tcp_proxy = TCPProxy(
-                self.peer_information_base.ipv4_address,
+                str(self.peer_information_base.ipv4_address),
                 self.peer_tcp_port,
                 self.addr,
                 self.on_tcp_receive,
@@ -481,10 +494,12 @@ class DLEPSession:
         json_data["destinations"] = []
         json_data["peer"] = {
             "tcp_port": self.peer_tcp_port,
-            "interface": "(depricated)",
             "heartbeat_interval": self.peer_heartbeat,
             "peer_type": self.peer_tcp_port,
-            "ipv4-address": self.peer_information_base.ipv4_address,
+            "ipv4-address": str(self.peer_information_base.ipv4_address),
+            "ipv4-attached-subnets": [
+                str(x) for x in self.peer_information_base.ipv4_attached_subnets
+            ],
             "max_datarate_rx": self.peer_information_base.max_datarate_rx,
             "max_datarate_tx": self.peer_information_base.max_datarate_tx,
             "cur_datarate_rx": self.peer_information_base.curr_datarate_rx,
@@ -494,7 +509,8 @@ class DLEPSession:
         for dest in self.destination_information_base:
             destination_data = {
                 "mac-address": dest.mac_address,
-                "ipv4-address": dest.ipv4_address,
+                "ipv4-address": str(dest.ipv4_address),
+                "ipv4-attached-subnet": [str(x) for x in dest.ipv4_attached_subnets],
                 "max_datarate_rx": dest.max_datarate_rx,
                 "max_datarate_tx": dest.max_datarate_tx,
                 "cur_datarate_rx": dest.curr_datarate_rx,
@@ -506,8 +522,8 @@ class DLEPSession:
         for event in self.recent_events:
             ev_data = {
                 "event-type": event.type,
-                "ipv4-addr": event.ipv4_addr,
                 "mac-addr": event.node_mac_addr,
+                "ipv4-addr": str(event.ipv4_addr),
             }
             json_data["events"].append(ev_data)
 
