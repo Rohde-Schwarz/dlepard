@@ -1,5 +1,5 @@
 {
-  "local-ipv4addr" : ["198.18.10.1"],
+  "local_ipv4addr" : ["198.18.10.1"],
 
   "discovery": {
     "ipv4addr" : "224.0.0.117",
@@ -16,8 +16,10 @@
     }
   },
 
-  "rest-if" : {
-    "broadcast-url" : [
+  "enable_lid_ext": true,
+
+  "rest_if" : {
+    "broadcast_url" : [
       "http://localhost:8080/api/v1/dlep-update"
     ]
   }

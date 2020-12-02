@@ -1,1 +1,1 @@
-rsb-dlep==1.2.0
+rsb-dlep==1.3.0
