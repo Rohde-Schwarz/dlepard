@@ -46,7 +46,7 @@ def main():
     conf, args = conf_init()
     loop = asyncio.get_event_loop()
     loop.set_debug(True)
-    addr_lst = conf["local-ipv4addr"]
+    addr_lst = conf["local_ipv4addr"]
     sessions = dlep_router_init(conf, loop, addr_lst)
     asyncio.ensure_future(init_logging(sessions))
     try:
@@ -82,8 +82,8 @@ def load_configuration_file(args):
 
 def update_webview(session: DLEPSession):
     info = session.get_information_json_string().encode("utf-8")
-    if "rest-if" in session.conf:
-        for url in session.conf["rest-if"]["broadcast-url"]:
+    if session.conf.rest_if is not None:
+        for url in session.conf.rest_if["broadcast_url"]:
             send_api_call(url, info)
 
 

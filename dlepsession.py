@@ -1,13 +1,14 @@
 import asyncio
+from dataclasses import dataclass
 from enum import IntEnum
 import ipaddress
 import json
 import logging
 from typing import Optional, List
 
-from rsb_dlep import data_items
-from rsb_dlep.data_items import DataItemType, StatusCode, core
+from rsb_dlep.data_items import DataItemType, StatusCode, ExtensionType
 import rsb_dlep.data_items.core as di
+import rsb_dlep.data_items.link_identifier as lid
 from rsb_dlep.message import MessageType, MessagePdu
 from rsb_dlep.signal import SignalType, SignalPdu
 
@@ -38,6 +39,7 @@ class DestinationInformationBase:
 
     def __init__(self):
         self.mac_address = None
+        self.link_identifier: bytes = b""
         self.ipv4_address: Optional[ipaddress.IPv4Address] = None
         self.ipv4_attached_subnets: List[ipaddress.IPv4Network] = []
         self.max_datarate_rx = 0
@@ -69,6 +71,20 @@ class RecentEvent:
         self.ipv4_addr = ipv4
 
 
+@dataclass
+class DLEPConfiguration:
+    local_ipv4addr: list
+    """All addresses to bind to."""
+    discovery: dict
+    """UDP configuration."""
+    tcp: Optional[dict] = None
+    """TCP configuration."""
+    rest_if: Optional[dict] = None
+    """REST interface configuraion."""
+    heartbeat_interval_ms: int = 60000
+    enable_lid_ext: bool = False
+
+
 class DLEPSession:
 
     DISCOVERY_PORT = 854
@@ -76,20 +92,24 @@ class DLEPSession:
     HEARTBEAT_IVAL = 60000
     """Default heartbeat interval."""
 
-    def __init__(self, conf, addr, loop=None, update_callback=None):
+    def __init__(self, conf: dict, addr: str, loop=None, update_callback=None):
         """
         Create a new instance of a DLEP session for a single interface
         Args:
             conf: configuration to be registered
-            interface: Name of the OS interface (e.g. enp1s0)
+            addr: local IP address to bind to
             loop: asyncio main loop
             update_callback: this method is called for signalling major updates
                              of the internal database
         """
-        self.conf = conf
+        self.conf = DLEPConfiguration(**conf)
 
-        self.dlep_mcast_ipv4addr = conf["discovery"].get("ipv4addr", "")
-        self.dlep_udp_port = conf["discovery"].get("port", self.DISCOVERY_PORT)
+        if self.conf.discovery is None:
+            self.dlep_mcast_ipv4addr = ""
+            self.dlep_udp_port = self.DISCOVERY_PORT
+        else:
+            self.dlep_mcast_ipv4addr = self.conf.discovery.get("ipv4addr", "")
+            self.dlep_udp_port = self.conf.discovery.get("port", self.DISCOVERY_PORT)
 
         self.loop = loop
         self.state = DlepSessionState.PEER_DISCOVERY_STATE
@@ -99,9 +119,8 @@ class DLEPSession:
         self.heartbeat_timer = None
         self.heartbeat_watchdog = None
         self.missed_heartbeats = 0
-        self.own_heartbeat_interval = conf.get(
-            "heartbeat-interval-ms", self.HEARTBEAT_IVAL
-        )
+        self.own_heartbeat_interval = self.conf.heartbeat_interval_ms
+        self.enabled_extensions = set()
 
         self.peer_tcp_port = None
         self.peer_type = ""
@@ -121,7 +140,7 @@ class DLEPSession:
     def __init_udp(self) -> Optional[UDPProxy]:
         if not self.dlep_mcast_ipv4addr:
             return None
-        if self.conf["discovery"].get("disabled", False):
+        if self.conf.discovery.get("disabled", False):
             return None
         return UDPProxy(
             self.dlep_mcast_ipv4addr,
@@ -133,11 +152,11 @@ class DLEPSession:
         )
 
     def __init_tcp(self) -> Optional[TCPProxy]:
-        if "tcp" not in self.conf or self.addr not in self.conf["tcp"]:
+        if self.conf.tcp is None or self.addr not in self.conf.tcp:
             return None
         if self.udp_proxy is not None:
             return None
-        tcp_conf = self.conf["tcp"][self.addr]
+        tcp_conf = self.conf.tcp[self.addr]
         self.peer_information_base.ipv4_address = tcp_conf["ipv4addr"]
         self.peer_tcp_port = tcp_conf["port"]
         return TCPProxy(
@@ -155,15 +174,25 @@ class DLEPSession:
             pdu: message pdu extracted from tcp message including all dataitems
 
         """
-        if pdu.type == MessageType.SESSION_INITIALISATION_RESPONSE_MESSAGE:
-            for item in pdu.data_items:
-                if item.type == DataItemType.STATUS:
-                    if item.status_code == StatusCode.SUCCESS:
-                        self.process_data_items(
-                            pdu.data_items, self.peer_information_base
-                        )
-                        self.print_destination_information_base(peer=True)
-                        self.enter_in_session_state()
+        if pdu.type != MessageType.SESSION_INITIALISATION_RESPONSE_MESSAGE:
+            return
+        result = self.process_data_items_init(pdu.data_items)
+        if result is None or result != StatusCode.SUCCESS:
+            return
+        self.process_data_items(pdu.data_items, self.peer_information_base)
+        self.print_destination_information_base(peer=True)
+        self.enter_in_session_state()
+
+    def _send_destination_response(
+        self, msg_type: MessageType, dib: DestinationInformationBase
+    ):
+        response_msg = MessagePdu(msg_type)
+        if dib.link_identifier:
+            response_msg.append_data_item(lid.LinkIdentifier(dib.link_identifier))
+        else:
+            response_msg.append_data_item(di.MacAddress(dib.mac_address))
+        response_msg.append_data_item(di.Status(StatusCode.SUCCESS, "RX-OK"))
+        self.tcp_proxy.send_msg(response_msg.to_buffer())
 
     def __process_in_session_tcp_message(self, pdu):
         """
@@ -187,12 +216,9 @@ class DLEPSession:
                     new_dib.ipv4_address,
                 )
             )
-
-            response_msg = MessagePdu(MessageType.DESTINATION_UP_RESPONSE_MESSAGE)
-            response_msg.append_data_item(di.MacAddress(new_dib.mac_address))
-            response_msg.append_data_item(di.Status(StatusCode.SUCCESS, "RX-OK"))
-            self.tcp_proxy.send_msg(response_msg.to_buffer())
-
+            self._send_destination_response(
+                MessageType.DESTINATION_UP_RESPONSE_MESSAGE, new_dib
+            )
             self.print_destination_information_base(peer=True)
 
         elif pdu.type == MessageType.DESTINATION_DOWN_MESSAGE:
@@ -215,11 +241,9 @@ class DLEPSession:
             for x in entries_to_remove:
                 self.destination_information_base.remove(x)
 
-            response_msg = MessagePdu(MessageType.DESTINATION_DOWN_RESPONSE_MESSAGE)
-            response_msg.append_data_item(di.MacAddress(dib_to_remove.mac_address))
-            response_msg.append_data_item(di.Status(StatusCode.SUCCESS, "RX-OK"))
-            self.tcp_proxy.send_msg(response_msg.to_buffer())
-
+            self._send_destination_response(
+                MessageType.DESTINATION_DOWN_RESPONSE_MESSAGE, dib_to_remove
+            )
             self.print_destination_information_base(peer=True)
 
         elif pdu.type == MessageType.DESTINATION_UPDATE_MESSAGE:
@@ -357,10 +381,6 @@ class DLEPSession:
             if item.type == DataItemType.IPV4_CONNECTION_POINT:
                 information_base.ipv4_address = item.ipaddr
                 self.peer_tcp_port = item.tcp_port
-            elif item.type == DataItemType.PEER_TYPE:
-                self.peer_type = item.description
-            elif item.type == DataItemType.HEARTBEAT_INTERVAL:
-                self.peer_heartbeat = item.heartbeatInterval
             elif item.type == DataItemType.MAXIMUM_DATA_RATE_RX:
                 information_base.max_datarate_rx = item.datarate
             elif item.type == DataItemType.MAXIMUM_DATA_RATE_TX:
@@ -375,10 +395,29 @@ class DLEPSession:
                 information_base.mac_address = item.addr
             elif item.type == DataItemType.IPV4_ADDRESS:
                 information_base.ipv4_address = item.ipaddr
-            elif isinstance(item, data_items.core.IPv4AttachedSubnet):
+            elif isinstance(item, di.IPv4AttachedSubnet):
                 information_base.ipv4_attached_subnets.append(item.subnet)
             elif item.type == DataItemType.LOSS_RATE:
                 information_base.loss = item.loss
+            elif isinstance(item, lid.LinkIdentifier):
+                information_base.link_identifier = item.lid
+
+    def process_data_items_init(self, item_array) -> Optional[StatusCode]:
+        items = {item.type: item for item in item_array}
+        try:
+            item = items[DataItemType.HEARTBEAT_INTERVAL]  # type: di.HeartbeatInterval
+            self.peer_heartbeat = item.heartbeatInterval
+            item = items[DataItemType.STATUS]  # type: di.Status
+            status = item.status_code
+        except KeyError:
+            return None
+        if DataItemType.EXTENSIONS_SUPPORTED in items:
+            item = items[
+                DataItemType.EXTENSIONS_SUPPORTED
+            ]  # type: di.ExtensionsSupported
+            if ExtensionType.LINK_IDENTIFIER in item.ext_list:
+                self.enabled_extensions.add(ExtensionType.LINK_IDENTIFIER)
+        return status
 
     async def enter_session_initialisation_state(self):
         log.debug("entering SESSION_INITIALISATION_STATE...")
@@ -399,8 +438,11 @@ class DLEPSession:
             di.HeartbeatInterval(self.own_heartbeat_interval)
         )
         session_init_message.append_data_item(di.PeerType("servus"))
+        if self.conf.enable_lid_ext:
+            item = di.ExtensionsSupported([ExtensionType.LINK_IDENTIFIER])
+            session_init_message.append_data_item(item)
 
-        tcp_conf = self.conf["tcp"][self.addr]
+        tcp_conf = self.conf.tcp[self.addr]
         if "ipv4subnets" in tcp_conf:
             for entry in tcp_conf["ipv4subnets"]:
                 session_init_message.append_data_item(
@@ -483,7 +525,10 @@ class DLEPSession:
         log.info("===========================================================")
         for dest in self.destination_information_base:
             log.info("--------------------------------------------------------")
-            log.info("MAC Address       - {}".format(dest.mac_address))
+            if dest.link_identifier:
+                log.info("Link Identifier   - {}".format(dest.link_identifier.hex()))
+            else:
+                log.info("MAC Address       - {}".format(dest.mac_address))
             log.info("IPv4 Address      - {}".format(dest.ipv4_address))
             log.info(
                 "IPv4 Subnets      - {}".format(
@@ -521,6 +566,7 @@ class DLEPSession:
         for dest in self.destination_information_base:
             destination_data = {
                 "mac-address": dest.mac_address,
+                "link-identifier": dest.link_identifier.hex(),
                 "ipv4-address": str(dest.ipv4_address),
                 "ipv4-attached-subnet": [str(x) for x in dest.ipv4_attached_subnets],
                 "max_datarate_rx": dest.max_datarate_rx,
