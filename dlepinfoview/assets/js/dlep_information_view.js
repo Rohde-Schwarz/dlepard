@@ -139,7 +139,7 @@ function processPeerData(jsonData, interface_index){
 function processDestTableHeader(){
     return '<table class="table table-sm table-hover"' +
         '<thead><tr>' +
-        '<th>MAC-Address</th>' +
+        '<th>Identifier (MAC or LID)</th>' +
         '<th>IPv4 Address</th>' +
         '<th>IPv4 Attached Subnets</th>' +
         '<th>Max. Datarate RX</th>' +
@@ -151,8 +151,12 @@ function processDestTableHeader(){
 }
 
 function processTableEntry(entry){
+    let id = entry['link-identifier']
+    if (id == '') {
+        id = entry['mac-address']
+    }
     return '<tr>' +
-        '<td>' + entry['mac-address'] + '</td>' +
+        '<td>' + id + '</td>' +
         '<td>' + entry['ipv4-address'] + '</td>' +
         '<td>' + entry['ipv4-attached-subnet'] + '</td>' +
         '<td>' + entry['max_datarate_rx'] + '</td>' +
