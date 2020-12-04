@@ -9,7 +9,7 @@ from typing import Optional, List
 from rsb_dlep.data_items import DataItemType, StatusCode, ExtensionType
 import rsb_dlep.data_items.core as di
 import rsb_dlep.data_items.link_identifier as lid
-from rsb_dlep.message import MessageType, MessagePdu
+from rsb_dlep.message import MessageType, MessagePdu, MessageHeader
 from rsb_dlep.signal import SignalType, SignalPdu
 
 from heartbeattimer import HeartbeatTimer
@@ -75,7 +75,7 @@ class RecentEvent:
 class DLEPConfiguration:
     local_ipv4addr: list
     """All addresses to bind to."""
-    discovery: dict
+    discovery: Optional[dict] = None
     """UDP configuration."""
     tcp: Optional[dict] = None
     """TCP configuration."""
@@ -121,6 +121,7 @@ class DLEPSession:
         self.missed_heartbeats = 0
         self.own_heartbeat_interval = self.conf.heartbeat_interval_ms
         self.enabled_extensions = set()
+        self._msg_buffer = bytearray()
 
         self.peer_tcp_port = None
         self.peer_type = ""
@@ -294,6 +295,18 @@ class DLEPSession:
                 self.process_data_items(pdu.data_items, self.peer_information_base)
                 asyncio.ensure_future(self.enter_session_initialisation_state())
 
+    def _assemble_dlep_message(self, buffer: bytes) -> Optional[MessagePdu]:
+        self._msg_buffer += buffer
+        if len(self._msg_buffer) < MessageHeader.SIZE:
+            return None
+        header = MessageHeader.from_buffer(self._msg_buffer[:MessageHeader.SIZE])
+        msg_size = MessageHeader.SIZE + header.len
+        if len(self._msg_buffer) < msg_size:
+            return None
+        msg = MessagePdu.from_buffer(self._msg_buffer[:msg_size])
+        self._msg_buffer = self._msg_buffer[msg_size:]
+        return msg
+
     def on_tcp_receive(self, message):
         """
         Callback function for asyncio tcp receiver.
@@ -302,19 +315,24 @@ class DLEPSession:
             message: The message received over TCP
         """
         self.reset_heartbeat_watchdog()
-
         log.debug("received something with len {}".format(len(message)))
-        pdu = MessagePdu.from_buffer(message)
-        log.debug("EXTRACTED message PDU type {} len {}".format(pdu.type, pdu.len))
 
-        if self.state == DlepSessionState.SESSION_INITIALISATION_STATE:
-            self.__process_session_init_tcp_message(pdu)
+        pdus = []
+        pdu = self._assemble_dlep_message(message)
+        while pdu is not None:
+            log.debug("EXTRACTED message PDU type {} len {}".format(pdu.type, pdu.len))
+            pdus.append(pdu)
+            pdu = self._assemble_dlep_message(b"")
 
-        elif self.state == DlepSessionState.IN_SESSION_STATE:
-            self.__process_in_session_tcp_message(pdu)
+        for pdu in pdus:
+            if self.state == DlepSessionState.SESSION_INITIALISATION_STATE:
+                self.__process_session_init_tcp_message(pdu)
 
-        elif self.state == DlepSessionState.SESSION_TERMINATION_STATE:
-            self.__process_session_termination_tcp_message(pdu)
+            elif self.state == DlepSessionState.IN_SESSION_STATE:
+                self.__process_in_session_tcp_message(pdu)
+
+            elif self.state == DlepSessionState.SESSION_TERMINATION_STATE:
+                self.__process_session_termination_tcp_message(pdu)
 
     def start_heartbeat_timer(self):
         # TODO: This should be peer_heartbeat
