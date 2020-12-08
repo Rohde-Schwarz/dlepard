@@ -102,7 +102,7 @@ def parse_args():
     return args
 
 
-if __name__ == '__main__':
+def main():
     args = parse_args()
     handler = UpdateHandler()
     app = web.Application()
@@ -114,3 +114,7 @@ if __name__ == '__main__':
     app.router.add_static('/assets', '{}/assets'.format(path), show_index=False)
 
     web.run_app(app, host='localhost', port=args.port)
+
+
+if __name__ == '__main__':
+    main()
