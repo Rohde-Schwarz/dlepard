@@ -13,8 +13,6 @@ from .dlepsession import DLEPSession
 log = logging.getLogger("DLEPard")
 log.addHandler(logging.StreamHandler(sys.stdout))
 
-PROG_NAME = "DLEP_ROUTER"
-
 
 def dlep_router_init(conf: dict, loop, addr_lst: list):
     """
@@ -122,8 +120,3 @@ def conf_init():
     args = parse_args()
     conf = load_configuration_file(args)
     return conf, args
-
-
-if __name__ == "__main__":
-    sys.stderr.write("{}\n".format(PROG_NAME))
-    main()

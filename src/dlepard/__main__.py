@@ -1,6 +1,6 @@
 import sys
 
-from . import dleprouter
+import dlepard.dleprouter
 
-sys.stderr.write("{}\n".format(dleprouter.PROG_NAME))
-dleprouter.main()
+sys.stderr.write("{} {}\n".format(dlepard.__name__, dlepard.__version__))
+dlepard.dleprouter.main()
