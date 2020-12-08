@@ -1,3 +1,7 @@
-.idea/**
-__pycache__/**
+.idea/
 
+**/__pycache__/
+**/*.egg-info/
+
+build/
+dist/
