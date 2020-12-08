@@ -12,7 +12,6 @@ from .dlepsession import DLEPSession
 
 log = logging.getLogger("DLEPard")
 log.addHandler(logging.StreamHandler(sys.stdout))
-log.setLevel(logging.DEBUG)
 
 PROG_NAME = "DLEP_ROUTER"
 
@@ -40,10 +39,12 @@ def dlep_router_init(conf: dict, loop, addr_lst: list):
 
 
 def main():
-    log = logging.getLogger("rsb_dlep")
-    log.setLevel(logging.DEBUG)
-    log.addHandler(logging.StreamHandler(sys.stdout))
+    log_rsbdlep = logging.getLogger("rsb_dlep")
+    log_rsbdlep.addHandler(logging.StreamHandler(sys.stdout))
     conf, args = conf_init()
+    if args.verbose:
+        log.setLevel(logging.DEBUG)
+        log_rsbdlep.setLevel(logging.DEBUG)
     loop = asyncio.get_event_loop()
     loop.set_debug(True)
     addr_lst = conf["local_ipv4addr"]
@@ -58,15 +59,13 @@ def main():
 
 
 def parse_args():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser("dlepard")
     parser.add_argument(
-        "-f",
-        "--configuration",
+        "configuration",
         help="location of configuration file",
         type=str,
-        default=None,
-        required=True,
     )
+    parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
     if not args.configuration:
         emsg = "Configuration required, please specify a valid file path, exiting now\n"

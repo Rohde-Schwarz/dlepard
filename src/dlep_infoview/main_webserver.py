@@ -8,6 +8,7 @@ from aiohttp import web
 
 path = os.path.dirname(os.path.realpath(__file__))
 
+
 class UpdateHandler(object):
     def __init__(self):
         self.ws = []
@@ -96,7 +97,7 @@ async def handle_website(request):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser("dlep_infoview")
     parser.add_argument('-p', "--port", help="Port", type=str, default='8080')
     args = parser.parse_args()
     return args
