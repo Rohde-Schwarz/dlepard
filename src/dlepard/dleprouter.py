@@ -8,7 +8,7 @@ import urllib.error
 import urllib.request
 import logging
 
-from dlepsession import DLEPSession
+from .dlepsession import DLEPSession
 
 log = logging.getLogger("DLEPard")
 log.addHandler(logging.StreamHandler(sys.stdout))

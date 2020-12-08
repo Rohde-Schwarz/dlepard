@@ -12,9 +12,9 @@ import rsb_dlep.data_items.link_identifier as lid
 from rsb_dlep.message import MessageType, MessagePdu, MessageHeader
 from rsb_dlep.signal import SignalType, SignalPdu
 
-from heartbeattimer import HeartbeatTimer
-from tcpproxy import TCPProxy
-from udpproxy import UDPProxy
+from .heartbeattimer import HeartbeatTimer
+from .tcpproxy import TCPProxy
+from .udpproxy import UDPProxy
 
 log = logging.getLogger("DLEPard")
 
