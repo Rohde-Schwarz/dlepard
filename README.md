@@ -8,17 +8,13 @@ This repository contains the implementation for the DLEP protocol according to
 The application can be started with the following command:
 
 ```
-sudo python3 ./dleprouter.py -f conf-enp3s0.json
+python3 -m dlepard dlep-router-conf.json
 ```
-
-The required command line arguments are:
-
-- `-f`: path to the configuration file
 
 The configuration file (e.g. `dlep-router-conf.json`) contains the following
 information:
 
-- `local-ipv4addr`: List of IP addresses to bind to.  Each address represents a
+- `local_ipv4addr`: List of IP addresses to bind to.  Each address represents a
   router instance.
 - `discovery`
   - `ipv4addr`: The service's multicast IPv4 address.
@@ -30,11 +26,12 @@ information:
     Default is `false`.
 - `tcp` (optional): A dictionary containing TCP connection configurations.
   This is only necessary if discovery is disabled.
-  - *Key*: One of the addresses from `local-ipv4addr`.
+  - *Key*: One of the addresses from `local_ipv4addr`.
     - `ipv4addr`: The modem's IP address.
     - `port`: The service's TCP port number.
-- `rest-if`
-  - `broadcast-url`: The URLs to all REST APIs that require the DLEP information
+- `enable_lid_ext`: Wheteher to enable the Link Identifier extension.
+- `rest_if`
+  - `broadcast_url`: The URLs to all REST APIs that require the DLEP information
     (e.g. the routing protocol or the *DLEP Info View*).
 
 ## TCP-Proxy
@@ -59,10 +56,11 @@ The payload is formatted in JSON and structured as follows:
 ```json
 {
     "peer": {
-        "ipv4-address": "192.1.1.102",
         "tcp_port": 32222,
         "heartbeat_interval": 10000,
         "peer_type": 32222,
+        "ipv4-address": "192.1.1.102",
+        "ipv4-attached-subnets": "192.1.1.0/24",
         "max_datarate_rx": 40000,
         "max_datarate_tx": 40000,
         "cur_datarate_rx": 0,
@@ -85,6 +83,7 @@ The payload is formatted in JSON and structured as follows:
         {
             "mac-address": "00:00:00:00:00:04",
             "ipv4-address": "192.1.1.104",
+            "ipv4-attached-subnets": "192.1.1.0/24",
             "max_datarate_rx": 40000,
             "max_datarate_tx": 40000,
             "cur_datarate_rx": 0,
@@ -104,6 +103,12 @@ that the DLEP plugin can use to publish its information.
 The web GUI can be and accessed via <http://localhost:8080/> and should work
 with any web browser.
 
+The application can be started with the following command:
+
+```
+python3 -m dlep_infoview -p 8080
+```
+
 ## Changelog
 
 ### Unreleased
@@ -113,6 +118,7 @@ with any web browser.
 - Discovery mechanism can be disabled
 - Let the operating system choose the source port for signals and messages
   + No need for *sudo* any more
+- The session module can reassemble packets from the TCP buffer
 
 ### 1.0.0 (2020-11-12)
 
