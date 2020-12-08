@@ -168,7 +168,7 @@ class DLEPSession:
             self.loop,
         )
 
-    def __process_session_init_tcp_message(self, pdu):
+    def _process_session_init_tcp_message(self, pdu):
         """
         Handles all the TCP messages in the SESSION_INITIALISATION_STATE
         Args:
@@ -195,7 +195,7 @@ class DLEPSession:
         response_msg.append_data_item(di.Status(StatusCode.SUCCESS, "RX-OK"))
         self.tcp_proxy.send_msg(response_msg.to_buffer())
 
-    def __process_in_session_tcp_message(self, pdu):
+    def _process_in_session_tcp_message(self, pdu):
         """
         Handles all the TCP messages in the IN_SESSION_STATE
         - updates destination information base
@@ -267,7 +267,7 @@ class DLEPSession:
             self.tcp_proxy.send_msg(response_msg.to_buffer())
             self.session_reset()
 
-    def __process_session_termination_tcp_message(self, pdu):
+    def _process_session_termination_tcp_message(self, pdu):
         """
         Handles all the TCP messages in the SESSION_TERMINATION_STATE
         Args:
@@ -326,13 +326,13 @@ class DLEPSession:
 
         for pdu in pdus:
             if self.state == DlepSessionState.SESSION_INITIALISATION_STATE:
-                self.__process_session_init_tcp_message(pdu)
+                self._process_session_init_tcp_message(pdu)
 
             elif self.state == DlepSessionState.IN_SESSION_STATE:
-                self.__process_in_session_tcp_message(pdu)
+                self._process_in_session_tcp_message(pdu)
 
             elif self.state == DlepSessionState.SESSION_TERMINATION_STATE:
-                self.__process_session_termination_tcp_message(pdu)
+                self._process_session_termination_tcp_message(pdu)
 
     def start_heartbeat_timer(self):
         # TODO: This should be peer_heartbeat
