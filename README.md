@@ -113,6 +113,8 @@ python3 -m dlep_infoview -p 8080
 
 ### Unreleased
 
+### 1.1.0 (2020-12-08)
+
 - Use explicit IP addresses instead of network interface names
   + *UDPProxy* works on Windows 10
 - Discovery mechanism can be disabled
